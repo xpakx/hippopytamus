@@ -6,6 +6,9 @@ port = 8000
 
 
 class TCPServer:
+    def __init__(self, protocol):
+        self.protocol = protocol
+
     def listen(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -20,10 +23,17 @@ class TCPServer:
 
             print(f"new client: {address}")
             data = connection.recv(1024)  # TODO: protocol should decide
-            connection.sendall(data)
+            result = self.protocol.process_request(data)
+            connection.sendall(result)
             connection.close()
 
 
+class EchoProtocol:
+    def process_request(self, request: bytes):
+        return request
+
+
 if __name__ == "__main__":
-    server = TCPServer()
+    protocol = EchoProtocol()
+    server = TCPServer(protocol)
     server.listen()
