@@ -84,7 +84,9 @@ class HttpProtocol10:
         return response
 
     def parse_request(self, request: bytes) -> Optional[dict]:
-        lines = request.split(b"\r\n")
+        header_body_split = request.split(b"\r\n\r\n", 1)
+        header = header_body_split[0]
+        lines = header.split(b"\r\n")
         header = lines[0].split(b" ")
         if len(header) != 3:
             return None
@@ -102,11 +104,17 @@ class HttpProtocol10:
             header_key = headersplit[0].decode('utf-8')
             header_value = headersplit[1].decode('utf-8').lstrip()
             headers[header_key] = header_value
+
+        body = None
+        if len(header_body_split) > 1:
+            body = header_body_split[1].decode('utf-8')
+
         request = {
                 "method": method,
                 "uri": uri,
                 "version": version,
-                "headers": headers
+                "headers": headers,
+                "body": body
         }
         print(request)
         return request
