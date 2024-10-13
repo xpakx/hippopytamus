@@ -1,5 +1,6 @@
 import socket
 import os
+from typing import Optional
 
 
 host = '127.0.0.1'
@@ -33,23 +34,23 @@ class TCPServer:
 
 
 class EchoProtocol:
-    def parse_request(self, request: bytes):
+    def parse_request(self, request: bytes) -> bytes:
         return request
 
-    def prepare_response(self, response: bytes):
+    def prepare_response(self, response: bytes) -> bytes:
         return response
 
 
 class EchoService():
-    def process_request(self, request):
+    def process_request(self, request: bytes) -> bytes:
         return request
 
 
 class HttpProtocol09:
-    def prepare_response(self, resp):
+    def prepare_response(self, resp: dict) -> bytes:
         return resp['body']
 
-    def parse_request(self, request):
+    def parse_request(self, request: bytes) -> Optional[dict]:
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
         print(request)
@@ -61,14 +62,15 @@ class HttpProtocol09:
             return None
         return {
                 "method": method,
-                "uri": uri
+                "uri": uri,
+                "version": "0.9"
         }
 
 
 class HttpProtocol10:
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
 
-    def prepare_response(self, resp):
+    def prepare_response(self, resp: dict) -> bytes:
         response = b"HTTP/1.0 "
         response += bytes(str(resp['code']), "ascii")
         response += b" "
@@ -81,7 +83,7 @@ class HttpProtocol10:
             response += resp['body']
         return response
 
-    def parse_request(self, request: bytes):
+    def parse_request(self, request: bytes) -> Optional[dict]:
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
         if len(header) != 3:
@@ -89,16 +91,29 @@ class HttpProtocol10:
         method = header[0].decode('utf-8')
         uri = header[1].decode('utf-8')
         version = header[2].decode('utf-8')
+
+        headers = {}
+        for line in lines[1:]:
+            if line == b'':
+                break
+            headersplit = line.split(b":", 1)
+            if len(headersplit) != 2:
+                return None  # TODO: 400
+            header_key = headersplit[0].decode('utf-8')
+            header_value = headersplit[1].decode('utf-8').lstrip()
+            headers[header_key] = header_value
         request = {
                 "method": method,
                 "uri": uri,
-                "version": version
+                "version": version,
+                "headers": headers
         }
+        print(request)
         return request
 
 
 class HttpService():
-    def process_request(self, request):
+    def process_request(self, request: dict) -> dict:
         print(f"Method: {request['method']}")
         print(f"Resource: {request['uri']}")
         if request['method'] != "GET":
@@ -121,7 +136,7 @@ class HttpService():
 
 
 if __name__ == "__main__":
-    protocol = HttpProtocol09()
+    protocol = HttpProtocol10()
     service = HttpService()
     server = TCPServer(protocol, service)
     server.listen()
