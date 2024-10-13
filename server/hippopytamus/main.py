@@ -7,8 +7,9 @@ port = 8000
 
 
 class TCPServer:
-    def __init__(self, protocol):
+    def __init__(self, protocol, service):
         self.protocol = protocol
+        self.service = service
 
     def listen(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,82 +25,60 @@ class TCPServer:
 
             print(f"new client: {address}")
             data = connection.recv(1024)  # TODO: protocol should decide
-            result = self.protocol.process_request(data)
+            request = self.protocol.parse_request(data)
+            response = self.service.process_request(request)
+            result = self.protocol.prepare_response(response)
             connection.sendall(result)
             connection.close()
 
 
 class EchoProtocol:
-    def process_request(self, request: bytes):
+    def parse_request(self, request: bytes):
+        return request
+
+    def prepare_response(self, response: bytes):
+        return response
+
+
+class EchoService():
+    def process_request(self, request):
         return request
 
 
 class HttpProtocol09:
-    def process_request(self, request: bytes):
-        header, uri = self.parse_request(request)
-        print(f"Method: {str(header)}")
-        print(f"Resource: {str(uri)}")
-        # TODO: should only parse request,
-        # move constructing response to service
-        if header != b"GET":
-            return b"<h1>Unsupported!</h1>"
-        if uri != b"/":
-            return self.not_found()
-        body, err = self.body_from_file("index.html")
-        if err:
-            return self.not_found()
-        return body
+    def prepare_response(self, resp):
+        return resp['body']
 
-    def parse_request(self, request: bytes) -> (str, str):
+    def parse_request(self, request):
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
+        print(request)
         if len(header) < 2:
             return None
-        method = header[0]
-        uri = header[1]
-        return method, uri
-
-    def not_found(self) -> bytes:
-        return b"<html><body><h1>No such file</h1></body></html>"
-
-    def body_from_file(self, url: str) -> (bytes, str):
-        if os.path.exists(url):
-            with open(url, 'rb') as f:
-                body = f.read()
-            return body, None
-        return None, "No such file"
+        method = header[0].decode('utf-8')
+        uri = header[1].decode('utf-8')
+        if method != "GET":
+            return None
+        return {
+                "method": method,
+                "uri": uri
+        }
 
 
 class HttpProtocol10:
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
 
-    def process_request(self, request: bytes):
-        req = self.parse_request(request)
-        print(f"Method: {req['method']}")
-        print(f"Resource: {req['uri']}")
-        # TODO: move to service
-        if req['method'] != "GET":
-            return self.response(code=501)
-        if req['uri'] != "/":
-            body, _ = self.body_from_file("404.html")
-            return self.response(code=404, body=body)
-        body, err = self.body_from_file("index.html")
-        if err:
-            body, _ = self.body_from_file("404.html")
-            return self.response(code=404, body=body)
-        return self.response(body=body)
-
-    def response(self, code: int = 200, body: str = None):
+    def prepare_response(self, resp):
         response = b"HTTP/1.0 "
-        response += bytes(str(code), "ascii")
+        response += bytes(str(resp['code']), "ascii")
         response += b" "
-        response += self.codes[code]
+        response += self.codes[resp['code']]
         response += b"\r\n"
         response += b"Server: Hippopytamus\r\n"
-        if body:
+        if resp['body']:
             response += b"Content-Type: text/html\r\n"
             response += b"\r\n"
-            response += body
+            response += resp['body']
         return response
 
     def parse_request(self, request: bytes):
@@ -117,6 +96,22 @@ class HttpProtocol10:
         }
         return request
 
+
+class HttpService():
+    def process_request(self, request):
+        print(f"Method: {request['method']}")
+        print(f"Resource: {request['uri']}")
+        if request['method'] != "GET":
+            return {"code": 501, "body": ""}
+        if request['uri'] != "/":
+            body, _ = self.body_from_file("404.html")
+            return {"code": 404, "body": body}
+        body, err = self.body_from_file("index.html")
+        if err:
+            body, _ = self.body_from_file("404.html")
+            return {"code": 404, "body": body}
+        return {"code": 200, "body": body}
+
     def body_from_file(self, url: str) -> (bytes, str):
         if os.path.exists(url):
             with open(url, 'rb') as f:
@@ -126,6 +121,7 @@ class HttpProtocol10:
 
 
 if __name__ == "__main__":
-    protocol = HttpProtocol10()
-    server = TCPServer(protocol)
+    protocol = HttpProtocol09()
+    service = HttpService()
+    server = TCPServer(protocol, service)
     server.listen()
