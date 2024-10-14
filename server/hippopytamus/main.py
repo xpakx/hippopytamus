@@ -1,14 +1,26 @@
 import socket
 import os
 from typing import Optional
-
+from abc import ABC, abstractmethod
 
 host = '127.0.0.1'
 port = 8000
 
 
+class Protocol(ABC):
+    @abstractmethod
+    def parse_request(self, data):
+        """Parses raw data into a request object."""
+        pass
+
+    @abstractmethod
+    def prepare_response(self, response):
+        """Prepares the response to be sent back."""
+        pass
+
+
 class TCPServer:
-    def __init__(self, protocol, service):
+    def __init__(self, protocol: Protocol, service):
         self.protocol = protocol
         self.service = service
 
@@ -33,7 +45,7 @@ class TCPServer:
             connection.close()
 
 
-class EchoProtocol:
+class EchoProtocol(Protocol):
     def parse_request(self, request: bytes) -> bytes:
         return request
 
@@ -46,7 +58,7 @@ class EchoService():
         return request
 
 
-class HttpProtocol09:
+class HttpProtocol09(Protocol):
     def prepare_response(self, resp: dict) -> bytes:
         return resp['body']
 
@@ -67,7 +79,7 @@ class HttpProtocol09:
         }
 
 
-class HttpProtocol10:
+class HttpProtocol10(Protocol):
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
 
     def prepare_response(self, resp: dict) -> bytes:
