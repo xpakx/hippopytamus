@@ -9,8 +9,8 @@ port = 8000
 
 class Protocol(ABC):
     @abstractmethod
-    def read_request(self, connection) -> (bytes, dict):
-        """Defines how to read a request from the connection."""
+    def feed_parse(self, buffer: bytes, context: dict) -> (bytes, bool):
+        """Prepares the response to be sent back."""
         pass
 
     @abstractmethod
@@ -42,7 +42,12 @@ class TCPServer:
             connection, address = sock.accept()
 
             print(f"new client: {address}")
-            data, context = protocol.read_request(connection)
+            read = False
+            data = b''
+            context = {}
+            while not read:
+                data += connection.recv(1024)
+                data, read = protocol.feed_parse(data, context)
             request = self.protocol.parse_request(data, context)
             response = self.service.process_request(request)
             result = self.protocol.prepare_response(response)
@@ -51,8 +56,8 @@ class TCPServer:
 
 
 class EchoProtocol(Protocol):
-    def read_request(self, connection):
-        return connection.recv(1024), None
+    def feed_parse(self, buffer, _):
+        return buffer, True
 
     def parse_request(self, request: bytes, context) -> bytes:
         return request
@@ -67,8 +72,8 @@ class EchoService():
 
 
 class HttpProtocol09(Protocol):
-    def read_request(self, connection):
-        return connection.recv(1024), None
+    def feed_parse(self, buffer, _):
+        return buffer, True
 
     def prepare_response(self, resp: dict) -> bytes:
         return resp['body']
@@ -92,28 +97,6 @@ class HttpProtocol09(Protocol):
 
 class HttpProtocol10(Protocol):
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
-
-    def read_request(self, connection):
-        request = b""
-        while b"\r\n\r\n" not in request:
-            chunk = connection.recv(1024)
-            if not chunk:
-                break
-            request += chunk
-
-        headers, _, body = request.partition(b"\r\n\r\n")
-        headers = self.parse_headers(headers)
-        if not headers:
-            return None, {}
-
-        if 'headers' in headers and 'Content-Length' in headers['headers']:
-            content_length = int(headers['headers']['Content-Length'])
-            while len(body) < content_length:
-                chunk = connection.recv(1024)
-                if not chunk:
-                    break
-                body += chunk
-        return body, headers
 
     def prepare_response(self, resp: dict) -> bytes:
         response = b"HTTP/1.0 "
@@ -159,10 +142,41 @@ class HttpProtocol10(Protocol):
         }
 
     def parse_request(self, request: bytes, context: str) -> Optional[dict]:
+        context = context['data']
         if 'headers' in context and 'Content-Length' in context['headers']:
             context['body'] = request.decode('utf-8')
         print(context)
         return context
+
+    def feed_parse(self, buffer: bytes, context: dict) -> (bytes, bool):
+        if 'headers_parsed' not in context:
+            context['headers_parsed'] = False
+            context['content_length'] = 0
+            context['body'] = b""
+
+        if not buffer:
+            return buffer, True
+
+        if not context['headers_parsed']:
+            header_end_index = buffer.find(b"\r\n\r\n")
+            if header_end_index != -1:
+                headers, _, body = buffer.partition(b"\r\n\r\n")
+                headers = self.parse_headers(headers)
+                context['headers_parsed'] = True
+                context['data'] = headers
+
+                if 'headers' in headers and 'Content-Length' in headers['headers']:
+                    context['content_length'] = int(headers['headers']['Content-Length'])
+                buffer = body
+            else:
+                return (buffer, False)
+
+        if context['headers_parsed']:
+            fin = False
+            if len(buffer) >= context['content_length']:
+                fin = True
+            return buffer, fin
+        return buffer, False
 
 
 class HttpService():
