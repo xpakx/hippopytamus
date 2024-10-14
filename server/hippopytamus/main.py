@@ -76,9 +76,13 @@ class HttpProtocol10:
         response += b" "
         response += self.codes[resp['code']]
         response += b"\r\n"
-        response += b"Server: Hippopytamus\r\n"
+        if 'headers' in resp:
+            for key, value in resp['headers'].items():
+                response += bytes(key, 'ascii')
+                response += b': '
+                response += bytes(value, 'ascii')
+                response += b"\r\n"
         if resp['body']:
-            response += b"Content-Type: text/html\r\n"
             response += b"\r\n"
             response += resp['body']
         return response
@@ -133,7 +137,14 @@ class HttpService():
         if err:
             body, _ = self.body_from_file("404.html")
             return {"code": 404, "body": body}
-        return {"code": 200, "body": body}
+        return {
+                "code": 200,
+                "body": body,
+                "headers": {
+                    "Server": "Hippopytamus",
+                    "Content-Type": "text/html"
+                }
+        }
 
     def body_from_file(self, url: str) -> (bytes, str):
         if os.path.exists(url):
