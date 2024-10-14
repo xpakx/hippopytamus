@@ -9,7 +9,12 @@ port = 8000
 
 class Protocol(ABC):
     @abstractmethod
-    def parse_request(self, data):
+    def read_request(self, connection) -> (bytes, dict):
+        """Defines how to read a request from the connection."""
+        pass
+
+    @abstractmethod
+    def parse_request(self, data: bytes, context: str):
         """Parses raw data into a request object."""
         pass
 
@@ -37,8 +42,8 @@ class TCPServer:
             connection, address = sock.accept()
 
             print(f"new client: {address}")
-            data = connection.recv(1024)  # TODO: protocol should decide
-            request = self.protocol.parse_request(data)
+            data, context = protocol.read_request(connection)
+            request = self.protocol.parse_request(data, context)
             response = self.service.process_request(request)
             result = self.protocol.prepare_response(response)
             connection.sendall(result)
@@ -46,7 +51,10 @@ class TCPServer:
 
 
 class EchoProtocol(Protocol):
-    def parse_request(self, request: bytes) -> bytes:
+    def read_request(self, connection):
+        return connection.recv(1024), None
+
+    def parse_request(self, request: bytes, context) -> bytes:
         return request
 
     def prepare_response(self, response: bytes) -> bytes:
@@ -59,10 +67,13 @@ class EchoService():
 
 
 class HttpProtocol09(Protocol):
+    def read_request(self, connection):
+        return connection.recv(1024), None
+
     def prepare_response(self, resp: dict) -> bytes:
         return resp['body']
 
-    def parse_request(self, request: bytes) -> Optional[dict]:
+    def parse_request(self, request: bytes, context) -> Optional[dict]:
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
         print(request)
@@ -82,6 +93,28 @@ class HttpProtocol09(Protocol):
 class HttpProtocol10(Protocol):
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
 
+    def read_request(self, connection):
+        request = b""
+        while b"\r\n\r\n" not in request:
+            chunk = connection.recv(1024)
+            if not chunk:
+                break
+            request += chunk
+
+        headers, _, body = request.partition(b"\r\n\r\n")
+        headers = self.parse_headers(headers)
+        if not headers:
+            return None, {}
+
+        if 'Content-Length' in headers:
+            content_length = headers['Content-Length']
+            while len(body) < content_length:
+                chunk = connection.recv(1024)
+                if not chunk:
+                    break
+                body += chunk
+        return body, headers
+
     def prepare_response(self, resp: dict) -> bytes:
         response = b"HTTP/1.0 "
         response += bytes(str(resp['code']), "ascii")
@@ -99,9 +132,7 @@ class HttpProtocol10(Protocol):
             response += resp['body']
         return response
 
-    def parse_request(self, request: bytes) -> Optional[dict]:
-        header_body_split = request.split(b"\r\n\r\n", 1)
-        header = header_body_split[0]
+    def parse_headers(self, header: bytes) -> Optional[dict]:
         lines = header.split(b"\r\n")
         header = lines[0].split(b" ")
         if len(header) != 3:
@@ -120,20 +151,18 @@ class HttpProtocol10(Protocol):
             header_key = headersplit[0].decode('utf-8')
             header_value = headersplit[1].decode('utf-8').lstrip()
             headers[header_key] = header_value
-
-        body = None
-        if len(header_body_split) > 1:
-            body = header_body_split[1].decode('utf-8')
-
-        request = {
+        return {
                 "method": method,
                 "uri": uri,
                 "version": version,
-                "headers": headers,
-                "body": body
+                "headers": headers
         }
-        print(request)
-        return request
+
+    def parse_request(self, request: bytes, context: str) -> Optional[dict]:
+        if 'headers' in context and 'Content-Length' in context['headers']:
+            context['body'] = request.decode('utf-8')
+        print(context)
+        return context
 
 
 class HttpService():
