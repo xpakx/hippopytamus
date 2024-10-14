@@ -106,8 +106,8 @@ class HttpProtocol10(Protocol):
         if not headers:
             return None, {}
 
-        if 'Content-Length' in headers:
-            content_length = headers['Content-Length']
+        if 'headers' in headers and 'Content-Length' in headers['headers']:
+            content_length = int(headers['headers']['Content-Length'])
             while len(body) < content_length:
                 chunk = connection.recv(1024)
                 if not chunk:
