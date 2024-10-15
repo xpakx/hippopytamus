@@ -54,7 +54,7 @@ class TCPServer:
             context = {}
             while not read:
                 data += connection.recv(1024)
-                data, read = protocol.feed_parse(data, context)
+                data, read = self.protocol.feed_parse(data, context)
             request = self.protocol.parse_request(data, context)
             response = self.service.process_request(request)
             result = self.protocol.prepare_response(response)
