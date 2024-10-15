@@ -24,8 +24,15 @@ class Protocol(ABC):
         pass
 
 
+class Servlet(ABC):
+    @abstractmethod
+    def process_request(self, request) -> dict:
+        """Process the request and generates a response."""
+        pass
+
+
 class TCPServer:
-    def __init__(self, protocol: Protocol, service):
+    def __init__(self, protocol: Protocol, service: Servlet):
         self.protocol = protocol
         self.service = service
 
