@@ -3,7 +3,7 @@ import inspect
 import os
 import importlib
 from hippopytamus.main import Servlet, TCPServer, HttpProtocol10
-from typing import get_type_hints
+from typing import get_type_hints, Union, List
 import functools
 
 
@@ -69,20 +69,82 @@ class HippoContainer(Servlet):
         return self.components[0].process_request(request)
 
 
-def GetMapping(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    wrapper.__hippo_decorator = "GetMapping"
-    return wrapper
+strList = Union[List[str], str]
 
 
-def PostMapping(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    wrapper.__hippo_decorator = "PostMapping"
-    return wrapper
+def getListForStrList(arg: strList) -> List[str]:
+    return arg if isinstance(arg, list) else [arg]
+
+
+def get_request_wrapper(annotation_name: str,
+                        path: strList = [], consumes: strList = [],
+                        headers: strList = [], method: strList = [],
+                        name: str = "", params: strList = [],
+                        produces: strList = [], value: strList = []):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        wrapper.__hippo_decorator = {
+                "__decorator__": "RequestMapping",
+                "path": getListForStrList(path),
+                "name": name,
+                "consumes": getListForStrList(consumes),
+                "headers": getListForStrList(headers),
+                "method": getListForStrList(method),
+                "params": getListForStrList(params),
+                "produces": getListForStrList(produces),
+                "value": getListForStrList(value),
+            }
+        return wrapper
+    return decorator
+
+
+def RequestMapping(path: strList = [], consumes: strList = [],
+                   headers: strList = [], method: strList = [],
+                   name: str = "", params: strList = [],
+                   produces: strList = [], value: strList = []):
+    # trick to let use decorator with or without parentheses
+    if callable(path):
+        # used without parentheses, called by system,
+        # path is actually a function
+        func = path
+        wrapper = get_request_wrapper("RequestMapping")
+        return wrapper(func)
+
+    else:
+        # used directly by user with arguments
+        return get_request_wrapper("RequestMapping",
+                                   path, consumes, headers, method,
+                                   name, params, produces, value)
+
+
+def GetMapping(path: strList = [], consumes: strList = [],
+               headers: strList = [], name: str = "",
+               params: strList = [], produces: strList = [],
+               value: strList = []):
+    if callable(path):
+        func = path
+        wrapper = get_request_wrapper("GetMapping", method="GET")
+        return wrapper(func)
+    else:
+        return get_request_wrapper("GetMapping",
+                                   path, consumes, headers, "GET",
+                                   name, params, produces, value)
+
+
+def PostMapping(path: strList = [], consumes: strList = [],
+                headers: strList = [], name: str = "",
+                params: strList = [], produces: strList = [],
+                value: strList = []):
+    if callable(path):
+        func = path
+        wrapper = get_request_wrapper("PostMapping", method="POST")
+        return wrapper(func)
+    else:
+        return get_request_wrapper("PostMapping",
+                                   path, consumes, headers, "POST",
+                                   name, params, produces, value)
 
 
 class HippoApp:
