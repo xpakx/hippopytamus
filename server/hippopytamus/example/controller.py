@@ -1,4 +1,4 @@
-from hippopytamus.context import Component
+from hippopytamus.context import Component, GetMapping, PostMapping
 
 
 @Component
@@ -6,6 +6,8 @@ class MyService:
     def __init__(self):
         print("Hello from service!")
 
+    @GetMapping
+    @PostMapping
     def process_request(self, request: dict) -> dict:
         return {
                 "code": 200,
