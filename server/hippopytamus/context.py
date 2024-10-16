@@ -27,13 +27,14 @@ def get_class_data(cls):
     for name, method in all_methods:
         if name != "__init__" and name.startswith('__'):
             continue
-        print(f"Method name: {name}")
+        current_method = {}
+        current_method['name'] = name
 
         sig = inspect.signature(method)
-        print(f"Arguments: {sig}")
+        current_method['signature'] = sig
 
         type_hints = get_type_hints(method)
-        print(f"Type hints: {type_hints}")
+        current_method['arguments'] = type_hints
 
         decorators = []
         met = method
@@ -43,12 +44,12 @@ def get_class_data(cls):
             met = met.__wrapped__
 
         if decorators:
-            print(f"Decorators: {decorators}")
-            methods.append(method)  # TODO include metadata
+            current_method['decorators'] = decorators
+            methods.append(current_method)
         elif name == "__init__":
-            methods.append(method)  # TODO include metadata
-        else:
-            print("No decorator detected")
+            current_method['decorators'] = []
+            methods.append(current_method)
+    print(methods)
     return methods
 
 
