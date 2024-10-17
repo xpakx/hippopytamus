@@ -14,6 +14,11 @@ def Component(cls):
     return cls
 
 
+Controller = Component
+Service = Component
+Repository = Component
+
+
 def get_class_decorators(cls):
     if hasattr(cls, '__hippo_decorators'):
         return cls.__hippo_decorators
@@ -21,7 +26,9 @@ def get_class_decorators(cls):
 
 
 def get_class_data(cls):
+    print(cls)
     print(f"Class name: {cls.__name__}")
+    print(f"class decorators: {get_class_decorators(cls)}")
     all_methods = inspect.getmembers(cls, predicate=lambda x: callable(x))
     methods = []
     for name, method in all_methods:
