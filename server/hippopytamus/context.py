@@ -4,7 +4,9 @@ import os
 import importlib
 from hippopytamus.main import Servlet, TCPServer, HttpProtocol10
 from typing import get_type_hints, Union, List
-from typing import Dict, Annotated, Any
+from typing import Dict, Any
+from typing import Annotated, get_origin, get_args
+from inspect import Signature, Parameter
 import functools
 
 
@@ -26,6 +28,20 @@ def get_class_decorators(cls):
     return []
 
 
+def extract_underlying_type(name: str, param: Parameter):
+    cls = param.annotation
+    if cls is inspect._empty:
+        return None, []
+
+    annotations = []
+    while get_origin(cls) is Annotated:
+        args = get_args(cls)
+        cls = args[0]
+        if isinstance(args[1], AnnotationMetadata):
+            annotations.append(args[1].metadata)
+    return {"name": name, "class": cls, "annotations": annotations}
+
+
 def get_class_data(cls):
     print(cls)
     print(f"Class name: {cls.__name__}")
@@ -37,9 +53,16 @@ def get_class_data(cls):
             continue
         current_method = {}
         current_method['name'] = name
+        current_method['method_handle'] = method
 
-        sig = inspect.signature(method)
-        current_method['signature'] = sig
+        sig: Signature = inspect.signature(method)
+        signature = []
+        for key, value in sig.parameters.items():
+            if key == "self":
+                continue
+            extracted_signature = extract_underlying_type(key, value)
+            signature.append(extracted_signature)
+        current_method['signature'] = signature
 
         type_hints = get_type_hints(method)
         current_method['arguments'] = type_hints
@@ -84,8 +107,7 @@ def getListForStrList(arg: strList) -> List[str]:
     return arg if isinstance(arg, list) else [arg]
 
 
-def get_request_wrapper(annotation_name: str,
-                        path: strList = [], consumes: strList = [],
+def get_request_wrapper(path: strList = [], consumes: strList = [],
                         headers: strList = [], method: strList = [],
                         name: str = "", params: strList = [],
                         produces: strList = [], value: strList = []):
@@ -117,13 +139,12 @@ def RequestMapping(path: strList = [], consumes: strList = [],
         # used without parentheses, called by system,
         # path is actually a function
         func = path
-        wrapper = get_request_wrapper("RequestMapping")
+        wrapper = get_request_wrapper()
         return wrapper(func)
 
     else:
         # used directly by user with arguments
-        return get_request_wrapper("RequestMapping",
-                                   path, consumes, headers, method,
+        return get_request_wrapper(path, consumes, headers, method,
                                    name, params, produces, value)
 
 
@@ -133,11 +154,10 @@ def GetMapping(path: strList = [], consumes: strList = [],
                value: strList = []):
     if callable(path):
         func = path
-        wrapper = get_request_wrapper("GetMapping", method="GET")
+        wrapper = get_request_wrapper(method="GET")
         return wrapper(func)
     else:
-        return get_request_wrapper("GetMapping",
-                                   path, consumes, headers, "GET",
+        return get_request_wrapper(path, consumes, headers, "GET",
                                    name, params, produces, value)
 
 
@@ -147,11 +167,10 @@ def PostMapping(path: strList = [], consumes: strList = [],
                 value: strList = []):
     if callable(path):
         func = path
-        wrapper = get_request_wrapper("PostMapping", method="POST")
+        wrapper = get_request_wrapper(method="POST")
         return wrapper(func)
     else:
-        return get_request_wrapper("PostMapping",
-                                   path, consumes, headers, "POST",
+        return get_request_wrapper(path, consumes, headers, "POST",
                                    name, params, produces, value)
 
 
