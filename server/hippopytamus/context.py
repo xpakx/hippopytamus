@@ -4,6 +4,7 @@ import os
 import importlib
 from hippopytamus.main import Servlet, TCPServer, HttpProtocol10
 from typing import get_type_hints, Union, List
+from typing import Dict, Annotated, Any
 import functools
 
 
@@ -154,13 +155,45 @@ def PostMapping(path: strList = [], consumes: strList = [],
                                    name, params, produces, value)
 
 
+class AnnotationMetadata:
+    def __init__(self, metadata: Dict):
+        self.metadata = metadata
+
+
+def RequestParam(cls, name: str = "", defaultValue: Any = None,
+                 required: bool = False):
+    metadata = {
+            "__decorator__": "RequestParam",
+            "name": name,
+            "defaultValue": defaultValue,
+            "required": required
+    }
+    return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+def RequestBody(cls, required: bool = False):
+    metadata = {
+            "__decorator__": "RequestBody",
+            "required": required
+    }
+    return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+def PathVariable(cls, name: str = "", required: bool = False):
+    metadata = {
+            "__decorator__": "PathVariable",
+            "name": name,
+            "required": required
+    }
+    return Annotated[cls, AnnotationMetadata(metadata)]
+
+
 class HippoApp:
     def __init__(self, module_name: str):
         classes = self.get_module_classes(module_name)
         print(classes)
         self.container = HippoContainer()
         for cls in classes:
-            print(cls)
             self.container.register(cls)
         self.server = TCPServer(HttpProtocol10(), self.container)
 
