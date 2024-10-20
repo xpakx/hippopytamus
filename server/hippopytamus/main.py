@@ -49,16 +49,19 @@ class TCPServer:
             connection, address = sock.accept()
 
             print(f"new client: {address}")
-            read = False
-            data = b''
             context = {}
-            while not read:
-                data += connection.recv(1024)
-                data, read = self.protocol.feed_parse(data, context)
-            request = self.protocol.parse_request(data, context)
-            response = self.service.process_request(request)
-            result = self.protocol.prepare_response(response)
-            connection.sendall(result)
+            while True:
+                read = False
+                data = b''
+                while not read:
+                    data += connection.recv(1024)
+                    data, read = self.protocol.feed_parse(data, context)
+                request = self.protocol.parse_request(data, context)
+                response = self.service.process_request(request)
+                result = self.protocol.prepare_response(response)
+                connection.sendall(result)
+                if 'keep-alive' not in context:
+                    break
             connection.close()
 
 
