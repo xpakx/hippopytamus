@@ -1,7 +1,7 @@
 if __name__ == "__main__":
     from hippopytamus.protocol.http import HttpProtocol10, HttpService
-    from hippopytamus.server import TCPServer
+    from hippopytamus.server import ThreadedTCPServer
     protocol = HttpProtocol10()
     service = HttpService()
-    server = TCPServer(protocol, service)
+    server = ThreadedTCPServer(protocol, service)
     server.listen()
