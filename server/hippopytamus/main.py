@@ -1,6 +1,4 @@
 import socket
-from typing import Optional
-from hippopytamus.protocol.http import HttpProtocol10, HttpService
 from hippopytamus.protocol.interface import Protocol, Servlet
 
 host = '127.0.0.1'
@@ -41,24 +39,8 @@ class TCPServer:
             connection.close()
 
 
-class EchoProtocol(Protocol):
-    def feed_parse(self, buffer, _):
-        return buffer, True
-
-    def parse_request(self, request: bytes, context) -> bytes:
-        return request
-
-    def prepare_response(self, response: bytes) -> bytes:
-        return response
-
-
-class EchoService():
-    def process_request(self, request: bytes) -> bytes:
-        print(request)
-        return request
-
-
 if __name__ == "__main__":
+    from hippopytamus.protocol.http import HttpProtocol10, HttpService
     protocol = HttpProtocol10()
     service = HttpService()
     server = TCPServer(protocol, service)
