@@ -2,7 +2,8 @@ import pkgutil
 import inspect
 import os
 import importlib
-from hippopytamus.main import Servlet, TCPServer, HttpProtocol10
+from hippopytamus.main import Servlet, TCPServer
+from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
 from typing import Dict, Any
 from typing import Annotated, get_origin, get_args
@@ -124,7 +125,6 @@ class HippoContainer(Servlet):
         route = self.routes[uri]
         if route:
             return route['method'](route['component'], request)
-
 
 
 strList = Union[List[str], str]
