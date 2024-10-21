@@ -2,7 +2,8 @@ import pkgutil
 import inspect
 import os
 import importlib
-from hippopytamus.main import Servlet, TCPServer
+from hippopytamus.protocol.interface import Servlet
+from hippopytamus.server import TCPServer
 from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
 from typing import Dict, Any
