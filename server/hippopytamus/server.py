@@ -93,6 +93,55 @@ class SimpleNonBlockingTCPServer:
         self.host = host
         self.port = port
 
+    def accept_connection(self, sock, connections):
+        try:
+            connection, address = sock.accept()
+            connection.setblocking(False)
+            print(f"new client: {address}")
+            connections.append({
+                "connection": connection,
+                "address": address,
+                "context": {},
+                "data": b'',
+                "read": False,
+            })
+        except BlockingIOError:
+            pass
+
+    def process(self, conn, i, to_remove):
+        conn['data'], conn['read'] = self.protocol.feed_parse(
+                conn['data'], conn['context'])
+        if conn['read']:
+            request = self.protocol.parse_request(
+                    conn['data'], conn['context'])
+            response = self.service.process_request(request)
+            result = self.protocol.prepare_response(response)
+            conn['connection'].sendall(result)
+            if 'keep-alive' not in conn['context']:
+                conn['connection'].close()
+                to_remove.append(i)
+
+    def read(self, conn, i, to_remove) -> bool:
+        try:
+            conn['data'] += conn['connection'].recv(1024)
+            return True
+        except BlockingIOError:
+            return False
+        except Exception as err:
+            print(err)
+            conn['connection'].close()
+            to_remove.append(i)
+            return False
+
+    def clear_connections(self, connections, to_remove):
+        for i in to_remove:
+            if i > 0:
+                connections[i] = connections.pop()  # swap remove
+            else:
+                connections.pop()
+            continue
+        to_remove.clear()
+
     def listen(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -105,46 +154,9 @@ class SimpleNonBlockingTCPServer:
 
         to_remove = []
         while True:
-            for i in to_remove:
-                if i > 0:
-                    connections[i] = connections.pop()  # swap remove
-                else:
-                    connections.pop()
-                continue
-            to_remove = []
-
-            try:
-                connection, address = sock.accept()
-                connection.setblocking(False)
-                print(f"new client: {address}")
-                connections.append({
-                    "connection": connection,
-                    "address": address,
-                    "context": {},
-                    "data": b'',
-                    "read": False,
-                })
-            except BlockingIOError:
-                pass
-
+            self.clear_connections(connections, to_remove)
+            self.accept_connection(sock, connections)
             for i, conn in enumerate(connections):
-                try:
-                    conn['data'] += conn['connection'].recv(1024)
-                except BlockingIOError:
-                    continue
-                except Exception as err:
-                    print(err)
-                    conn['connection'].close()
-                    to_remove.append(i)
-
-                conn['data'], conn['read'] = self.protocol.feed_parse(
-                        conn['data'], conn['context'])
-                if conn['read']:
-                    request = self.protocol.parse_request(
-                            conn['data'], conn['context'])
-                    response = self.service.process_request(request)
-                    result = self.protocol.prepare_response(response)
-                    conn['connection'].sendall(result)
-                    if 'keep-alive' not in conn['context']:
-                        conn['connection'].close()
-                        to_remove.append(i)
+                read = self.read(conn, i, to_remove)
+                if read:
+                    self.process(conn, i, to_remove)
