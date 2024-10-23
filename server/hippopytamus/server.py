@@ -194,13 +194,13 @@ class SelectTCPServer:
                 else:
                     index = self.connections.index(conn)
                     state = self.state[index]
-                    keep_open = True
-                    read = self.read(conn, state)
-                    if read:
-                        keep_open = self.process(conn, state)
-                    if not read or not keep_open:
-                        self.connections.pop(index)
-                        self.state.pop(index)
+                    if self.read(conn, state):
+                        self.process(conn, state)
+
+    def remove_connection(self, connection):
+        index = self.connections.index(connection)
+        self.connections.pop(index)
+        self.state.pop(index)
 
     def accept_connection(self, sock):
         connection, address = sock.accept()
@@ -214,7 +214,7 @@ class SelectTCPServer:
             "read": False,
         })
 
-    def process(self, conn, state) -> bool:
+    def process(self, conn, state):
         state['data'], state['read'] = self.protocol.feed_parse(
                 state['data'], state['context'])
         if state['read']:
@@ -225,8 +225,7 @@ class SelectTCPServer:
             conn.sendall(result)
             if 'keep-alive' not in state['context']:
                 conn.close()
-                return False
-        return True
+                self.remove_connection(conn)
 
     def read(self, conn, state) -> bool:
         try:
@@ -234,4 +233,5 @@ class SelectTCPServer:
             return True
         except Exception as err:
             print(err)
+            self.remove_connection(conn)
             return False
