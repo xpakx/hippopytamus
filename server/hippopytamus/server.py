@@ -1,6 +1,7 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
 import threading
+import select
 
 
 class TCPServer:
@@ -160,3 +161,77 @@ class SimpleNonBlockingTCPServer:
                 read = self.read(conn, i, to_remove)
                 if read:
                     self.process(conn, i, to_remove)
+
+
+class SelectTCPServer:
+    def __init__(self, protocol: Protocol, service: Servlet,
+                 host="localhost", port=8000):
+        self.protocol = protocol
+        self.service = service
+        self.host = host
+        self.port = port
+
+    def listen(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setblocking(False)
+        sock.bind((self.host, self.port))
+
+        sock.listen()
+        print(sock.getsockname())
+        connections = []
+        connections.append(sock)
+        state = []
+        state.append(None)
+
+        while True:
+            # TODO: use select for writing; exceptions
+            readable, _, _ = select.select(connections, [], [])
+
+            for conn in readable:
+                if conn is sock:
+                    self.accept_connection(sock, connections, state)
+                else:
+                    index = connections.index(conn)
+                    conn_data = state[index]
+                    keep_open = True
+                    read = self.read(conn, conn_data)
+                    if read:
+                        keep_open = self.process(conn, conn_data)
+                    if not read or not keep_open:
+                        connections.pop(index)
+                        state.pop(index)
+
+    def accept_connection(self, sock, connections, state):
+        connection, address = sock.accept()
+        connection.setblocking(False)
+        print(f"new client: {address}")
+        connections.append(connection)
+        state.append({
+            "address": address,
+            "context": {},
+            "data": b'',
+            "read": False,
+        })
+
+    def process(self, conn, state) -> bool:
+        state['data'], state['read'] = self.protocol.feed_parse(
+                state['data'], state['context'])
+        if state['read']:
+            request = self.protocol.parse_request(
+                    state['data'], state['context'])
+            response = self.service.process_request(request)
+            result = self.protocol.prepare_response(response)
+            conn.sendall(result)
+            if 'keep-alive' not in state['context']:
+                conn.close()
+                return False
+        return True
+
+    def read(self, conn, state) -> bool:
+        try:
+            state['data'] += conn.recv(1024)
+            return True
+        except Exception as err:
+            print(err)
+            return False
