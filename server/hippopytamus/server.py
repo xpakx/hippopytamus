@@ -170,6 +170,8 @@ class SelectTCPServer:
         self.service = service
         self.host = host
         self.port = port
+        self.connections = []
+        self.state = []
 
     def listen(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -179,35 +181,33 @@ class SelectTCPServer:
 
         sock.listen()
         print(sock.getsockname())
-        connections = []
-        connections.append(sock)
-        state = []
-        state.append(None)
+        self.connections.append(sock)
+        self.state.append(None)
 
         while True:
             # TODO: use select for writing; exceptions
-            readable, _, _ = select.select(connections, [], [])
+            readable, _, _ = select.select(self.connections, [], [])
 
             for conn in readable:
                 if conn is sock:
-                    self.accept_connection(sock, connections, state)
+                    self.accept_connection(sock)
                 else:
-                    index = connections.index(conn)
-                    conn_data = state[index]
+                    index = self.connections.index(conn)
+                    state = self.state[index]
                     keep_open = True
-                    read = self.read(conn, conn_data)
+                    read = self.read(conn, state)
                     if read:
-                        keep_open = self.process(conn, conn_data)
+                        keep_open = self.process(conn, state)
                     if not read or not keep_open:
-                        connections.pop(index)
-                        state.pop(index)
+                        self.connections.pop(index)
+                        self.state.pop(index)
 
-    def accept_connection(self, sock, connections, state):
+    def accept_connection(self, sock):
         connection, address = sock.accept()
         connection.setblocking(False)
         print(f"new client: {address}")
-        connections.append(connection)
-        state.append({
+        self.connections.append(connection)
+        self.state.append({
             "address": address,
             "context": {},
             "data": b'',
