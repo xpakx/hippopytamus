@@ -3,7 +3,7 @@ import inspect
 import os
 import importlib
 from hippopytamus.protocol.interface import Servlet
-from hippopytamus.server import TCPServer
+from hippopytamus.server.nonblocking import SelectTCPServer
 from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
 from typing import Dict, Any
@@ -242,7 +242,7 @@ class HippoApp:
         self.container = HippoContainer()
         for cls in classes:
             self.container.register(cls)
-        self.server = TCPServer(HttpProtocol10(), self.container)
+        self.server = SelectTCPServer(HttpProtocol10(), self.container)
 
     def inspect_module(self, module):
         return inspect.getmembers(module, inspect.isclass)
