@@ -155,3 +155,80 @@ class SelectTCPServer:
             print(err)
             self.remove_connection(conn)
             return False
+
+
+class PollTCPServer:
+    def __init__(self, protocol: Protocol, service: Servlet,
+                 host="localhost", port=8000):
+        self.protocol = protocol
+        self.service = service
+        self.host = host
+        self.port = port
+        self.fdmap = {}
+        self.poller = None
+
+    def listen(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setblocking(False)
+        sock.bind((self.host, self.port))
+
+        sock.listen()
+        print(sock.getsockname())
+
+        self.poller = select.poll()
+        self.poller.register(sock, select.POLLIN)
+        self.fdmap[sock.fileno()] = {"connection": sock, "state": None}
+
+        while True:
+            events = self.poller.poll(-1)
+
+            for fd, flag in events:
+                conn = self.fdmap.get(fd)
+                if conn['connection'] is sock:
+                    self.accept_connection(sock)
+                elif flag & select.POLLIN == select.POLLIN:
+                    if self.read(conn):
+                        self.process(conn)
+                elif flag & select.POLLHUP != 0:
+                    self.remove_connection(conn)
+
+    def remove_connection(self, connection):
+        fd = connection['connection'].fileno()
+        self.fdmap.pop(fd)
+        self.poller.unregister(fd)
+        connection['connection'].close()
+
+    def accept_connection(self, sock):
+        connection, address = sock.accept()
+        connection.setblocking(False)
+        print(f"new client: {address}")
+        self.poller.register(connection, select.POLLIN)
+        self.fdmap[connection.fileno()] = {
+            "connection": connection,
+            "address": address,
+            "context": {},
+            "data": b'',
+            "read": False,
+        }
+
+    def process(self, conn):
+        conn['data'], conn['read'] = self.protocol.feed_parse(
+                conn['data'], conn['context'])
+        if conn['read']:
+            request = self.protocol.parse_request(
+                    conn['data'], conn['context'])
+            response = self.service.process_request(request)
+            result = self.protocol.prepare_response(response)
+            conn['connection'].sendall(result)
+            if 'keep-alive' not in conn['context']:
+                self.remove_connection(conn)
+
+    def read(self, conn) -> bool:
+        try:
+            conn['data'] += conn['connection'].recv(1024)
+            return True
+        except Exception as err:
+            print(err)
+            self.remove_connection(conn['connection'])
+            return False
