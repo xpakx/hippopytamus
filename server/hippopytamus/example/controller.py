@@ -1,5 +1,6 @@
 from hippopytamus.context import Controller, GetMapping, RequestBody
-from typing import Dict
+from typing import Dict, Tuple, Optional
+import os
 
 
 @Controller
@@ -17,3 +18,25 @@ class MyService:
                     "Content-Type": "text/html"
                 }
         }
+
+    @GetMapping("/")
+    def home(self, request: RequestBody(Dict)) -> Dict:
+        body, err = self.body_from_file("index.html")
+        if err:
+            body, _ = self.body_from_file("404.html")
+            return {"code": 404, "body": body}
+        return {
+                "code": 200,
+                "body": body,
+                "headers": {
+                    "Server": "Hippopytamus",
+                    "Content-Type": "text/html"
+                }
+        }
+
+    def body_from_file(self, url: str) -> Tuple[Optional[bytes], Optional[str]]:
+        if os.path.exists(url):
+            with open(url, 'rb') as f:
+                body = f.read()
+            return body, None
+        return None, "No such file"
