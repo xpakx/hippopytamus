@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
+from typing import Tuple, Dict
 
 
 class Protocol(ABC):
     @abstractmethod
-    def feed_parse(self, buffer: bytes, context: dict) -> (bytes, bool):
+    def feed_parse(self, buffer: bytes, context: Dict) -> Tuple[bytes, bool]:
         """Prepares the response to be sent back."""
         pass
 
     @abstractmethod
-    def parse_request(self, data: bytes, context: str):
+    def parse_request(self, data: bytes, context: Dict):
         """Parses raw data into a request object."""
         pass
 
@@ -20,6 +21,6 @@ class Protocol(ABC):
 
 class Servlet(ABC):
     @abstractmethod
-    def process_request(self, request) -> dict:
+    def process_request(self, request) -> Dict:
         """Process the request and generates a response."""
         pass

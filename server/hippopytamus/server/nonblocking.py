@@ -1,6 +1,7 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
 import select
+from typing import List, Any, Dict
 
 
 # this is a very naive implementation that will result in
@@ -90,8 +91,8 @@ class SelectTCPServer:
         self.service = service
         self.host = host
         self.port = port
-        self.connections = []
-        self.state = []
+        self.connections: List[socket.socket] = []
+        self.state: List[Any] = []
 
     def listen(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -164,7 +165,7 @@ class PollTCPServer:
         self.service = service
         self.host = host
         self.port = port
-        self.fdmap = {}
+        self.fdmap: Dict[int, Any] = {}
         self.poller = None
 
     def listen(self):

@@ -1,19 +1,19 @@
 from hippopytamus.protocol.interface import Protocol
-from typing import Optional, Dict
+from typing import Dict, Tuple
 
 
 class SSHProtocol(Protocol):
     def prepare_response(self, response) -> bytes:
         return response
 
-    def parse_request(self, request: bytes, context: Dict) -> Optional[Dict]:
+    def parse_request(self, request: bytes, context: Dict):
         if 'payload' in context:
             print(context['payload'])
         if 'read' in context:
             context.pop('read')
         return request
 
-    def feed_parse(self, buffer: bytes, context: Dict) -> (bytes, bool):
+    def feed_parse(self, buffer: bytes, context: Dict) -> Tuple[bytes, bool]:
         if context == {}:
             context['keep-alive'] = True  # create init method?
         if 'version' not in context:

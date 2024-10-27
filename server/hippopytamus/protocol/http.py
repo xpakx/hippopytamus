@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from hippopytamus.protocol.interface import Protocol
 
 
@@ -47,14 +47,14 @@ class HttpProtocol10(Protocol):
             response += resp['body']
         return response
 
-    def parse_headers(self, header: bytes) -> Optional[dict]:
+    def parse_headers(self, header: bytes) -> Optional[Dict]:
         lines = header.split(b"\r\n")
-        header = lines[0].split(b" ")
-        if len(header) != 3:
+        header_data = lines[0].split(b" ")
+        if len(header_data) != 3:
             return None
-        method = header[0].decode('utf-8')
-        uri = header[1].decode('utf-8')
-        version = header[2].decode('utf-8')
+        method = header_data[0].decode('utf-8')
+        uri = header_data[1].decode('utf-8')
+        version = header_data[2].decode('utf-8')
 
         headers = {}
         for line in lines[1:]:
@@ -73,14 +73,14 @@ class HttpProtocol10(Protocol):
                 "headers": headers
         }
 
-    def parse_request(self, request: bytes, context: str) -> Optional[dict]:
+    def parse_request(self, request: bytes, context: Dict) -> Optional[Dict]:
         context = context['data']
         if 'headers' in context and 'Content-Length' in context['headers']:
             context['body'] = request.decode('utf-8')
         print(context)
         return context
 
-    def feed_parse(self, buffer: bytes, context: dict) -> (bytes, bool):
+    def feed_parse(self, buffer: bytes, context: dict) -> Tuple[bytes, bool]:
         if 'headers_parsed' not in context:
             context['headers_parsed'] = False
             context['content_length'] = 0
@@ -93,12 +93,14 @@ class HttpProtocol10(Protocol):
             header_end_index = buffer.find(b"\r\n\r\n")
             if header_end_index != -1:
                 headers, _, body = buffer.partition(b"\r\n\r\n")
-                headers = self.parse_headers(headers)
+                headers_data = self.parse_headers(headers)
+                if not headers_data:
+                    return buffer, True
                 context['headers_parsed'] = True
-                context['data'] = headers
+                context['data'] = headers_data
 
-                if 'headers' in headers and 'Content-Length' in headers['headers']:
-                    context['content_length'] = int(headers['headers']['Content-Length'])
+                if 'headers' in headers_data and 'Content-Length' in headers_data['headers']:
+                    context['content_length'] = int(headers_data['headers']['Content-Length'])
                 buffer = body
             else:
                 return (buffer, False)
@@ -133,7 +135,7 @@ class HttpService():
                 }
         }
 
-    def body_from_file(self, url: str) -> (bytes, str):
+    def body_from_file(self, url: str) -> Tuple[Optional[bytes], Optional[str]]:
         if os.path.exists(url):
             with open(url, 'rb') as f:
                 body = f.read()

@@ -87,8 +87,8 @@ def get_class_data(cls):
 
 
 class HippoContainer(Servlet):
-    components = []
-    routes = {}
+    components: List[Any] = []
+    routes: Dict[str, Any] = {}
 
     def register(self, cls: classmethod):
         # TODO dependency injection
@@ -126,6 +126,7 @@ class HippoContainer(Servlet):
         route = self.routes[uri]
         if route:
             return route['method'](route['component'], request)
+        return {}
 
 
 strList = Union[List[str], str]
@@ -253,7 +254,11 @@ class HippoApp:
     def get_module_classes(self, package_name: str):
         # TODO not a package
         package = importlib.import_module(package_name)
+        if not package or not package.__file__:
+            raise Exception("Error")
         package_dir = os.path.dirname(package.__file__)
+        if not package_dir:
+            raise Exception("Error")
 
         all_classes = []
 
