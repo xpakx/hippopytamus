@@ -1,4 +1,4 @@
-from hippopytamus.protocol.interface import Protocol
+from hippopytamus.protocol.interface import Protocol, Servlet
 
 
 class EchoProtocol(Protocol):
@@ -12,6 +12,6 @@ class EchoProtocol(Protocol):
         return response
 
 
-class EchoService():
+class EchoService(Servlet):
     def process_request(self, request: bytes) -> bytes:
         return request

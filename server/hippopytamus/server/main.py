@@ -1,16 +1,17 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
+from typing import Dict, Any
 
 
 class SimpleTCPServer:
     def __init__(self, protocol: Protocol, service: Servlet,
-                 host="localhost", port=8000):
+                 host: str = "localhost", port: int = 8000) -> None:
         self.protocol = protocol
         self.service = service
         self.host = host
         self.port = port
 
-    def listen(self):
+    def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # TODO: timeout (maybe?)
@@ -23,7 +24,7 @@ class SimpleTCPServer:
             connection, address = sock.accept()
 
             print(f"new client: {address}")
-            context = {}
+            context: Dict[str, Any] = {}
             while True:
                 read = False
                 data = b''

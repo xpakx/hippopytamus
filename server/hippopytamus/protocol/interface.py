@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Union
 
 
 class Protocol(ABC):
@@ -21,6 +21,6 @@ class Protocol(ABC):
 
 class Servlet(ABC):
     @abstractmethod
-    def process_request(self, request) -> Dict:
+    def process_request(self, request) -> Union[bytes, Dict]:
         """Process the request and generates a response."""
         pass

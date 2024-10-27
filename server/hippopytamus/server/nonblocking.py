@@ -1,7 +1,7 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
 import select
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 
 
 # this is a very naive implementation that will result in
@@ -9,13 +9,13 @@ from typing import List, Any, Dict
 # socket
 class SimpleNonBlockingTCPServer:
     def __init__(self, protocol: Protocol, service: Servlet,
-                 host="localhost", port=8000):
+                 host: str = "localhost", port: int = 8000) -> None:
         self.protocol = protocol
         self.service = service
         self.host = host
         self.port = port
 
-    def accept_connection(self, sock, connections):
+    def accept_connection(self, sock: socket.socket, connections: List[Dict[str, Any]]):
         try:
             connection, address = sock.accept()
             connection.setblocking(False)
@@ -30,7 +30,7 @@ class SimpleNonBlockingTCPServer:
         except BlockingIOError:
             pass
 
-    def process(self, conn, i, to_remove):
+    def process(self, conn: Dict[str, Any], i: int, to_remove: List[int]) -> None:
         conn['data'], conn['read'] = self.protocol.feed_parse(
                 conn['data'], conn['context'])
         if conn['read']:
@@ -43,7 +43,7 @@ class SimpleNonBlockingTCPServer:
                 conn['connection'].close()
                 to_remove.append(i)
 
-    def read(self, conn, i, to_remove) -> bool:
+    def read(self, conn: Dict[str, Any], i: int, to_remove: List[int]) -> bool:
         try:
             conn['data'] += conn['connection'].recv(1024)
             return True
@@ -55,7 +55,7 @@ class SimpleNonBlockingTCPServer:
             to_remove.append(i)
             return False
 
-    def clear_connections(self, connections, to_remove):
+    def clear_connections(self, connections: List[Dict[str, Any]], to_remove: List[int]) -> None:
         for i in to_remove:
             if i > 0:
                 connections[i] = connections.pop()  # swap remove
@@ -64,7 +64,7 @@ class SimpleNonBlockingTCPServer:
             continue
         to_remove.clear()
 
-    def listen(self):
+    def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setblocking(False)
@@ -72,9 +72,9 @@ class SimpleNonBlockingTCPServer:
 
         sock.listen()
         print(sock.getsockname())
-        connections = []
+        connections: List[Dict[str, Any]] = []
 
-        to_remove = []
+        to_remove: List[int] = []
         while True:
             self.clear_connections(connections, to_remove)
             self.accept_connection(sock, connections)
@@ -86,7 +86,7 @@ class SimpleNonBlockingTCPServer:
 
 class SelectTCPServer:
     def __init__(self, protocol: Protocol, service: Servlet,
-                 host="localhost", port=8000):
+                 host: str = "localhost", port: int = 8000) -> None:
         self.protocol = protocol
         self.service = service
         self.host = host
@@ -94,7 +94,7 @@ class SelectTCPServer:
         self.connections: List[socket.socket] = []
         self.state: List[Any] = []
 
-    def listen(self):
+    def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setblocking(False)
@@ -118,12 +118,12 @@ class SelectTCPServer:
                     if self.read(conn, state):
                         self.process(conn, state)
 
-    def remove_connection(self, connection):
+    def remove_connection(self, connection: socket.socket) -> None:
         index = self.connections.index(connection)
         self.connections.pop(index)
         self.state.pop(index)
 
-    def accept_connection(self, sock):
+    def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
         print(f"new client: {address}")
@@ -135,7 +135,7 @@ class SelectTCPServer:
             "read": False,
         })
 
-    def process(self, conn, state):
+    def process(self, conn: socket.socket, state: Dict[str, Any]) -> None:
         state['data'], state['read'] = self.protocol.feed_parse(
                 state['data'], state['context'])
         if state['read']:
@@ -148,7 +148,7 @@ class SelectTCPServer:
                 conn.close()
                 self.remove_connection(conn)
 
-    def read(self, conn, state) -> bool:
+    def read(self, conn: socket.socket, state: Dict[str, Any]) -> bool:
         try:
             state['data'] += conn.recv(1024)
             return True
@@ -160,15 +160,15 @@ class SelectTCPServer:
 
 class PollTCPServer:
     def __init__(self, protocol: Protocol, service: Servlet,
-                 host="localhost", port=8000):
+                 host: str = "localhost", port: int = 8000) -> None:
         self.protocol = protocol
         self.service = service
         self.host = host
         self.port = port
         self.fdmap: Dict[int, Any] = {}
-        self.poller = None
+        self.poller: Optional[select.poll] = None
 
-    def listen(self):
+    def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setblocking(False)
@@ -186,6 +186,8 @@ class PollTCPServer:
 
             for fd, flag in events:
                 conn = self.fdmap.get(fd)
+                if not conn:
+                    continue
                 if conn['connection'] is sock:
                     self.accept_connection(sock)
                 elif flag & select.POLLIN == select.POLLIN:
@@ -194,16 +196,20 @@ class PollTCPServer:
                 elif flag & select.POLLHUP != 0:
                     self.remove_connection(conn)
 
-    def remove_connection(self, connection):
+    def remove_connection(self, connection: Dict[str, Any]) -> None:
         fd = connection['connection'].fileno()
         self.fdmap.pop(fd)
+        if not self.poller:
+            return
         self.poller.unregister(fd)
         connection['connection'].close()
 
-    def accept_connection(self, sock):
+    def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
         print(f"new client: {address}")
+        if not self.poller:
+            return
         self.poller.register(connection, select.POLLIN)
         self.fdmap[connection.fileno()] = {
             "connection": connection,
@@ -213,7 +219,7 @@ class PollTCPServer:
             "read": False,
         }
 
-    def process(self, conn):
+    def process(self, conn: Dict[str, Any]) -> None:
         conn['data'], conn['read'] = self.protocol.feed_parse(
                 conn['data'], conn['context'])
         if conn['read']:
@@ -225,7 +231,7 @@ class PollTCPServer:
             if 'keep-alive' not in conn['context']:
                 self.remove_connection(conn)
 
-    def read(self, conn) -> bool:
+    def read(self, conn: Dict[str, Any]) -> bool:
         try:
             conn['data'] += conn['connection'].recv(1024)
             return True

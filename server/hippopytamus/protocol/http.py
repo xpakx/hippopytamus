@@ -1,6 +1,6 @@
 import os
-from typing import Optional, Dict, Tuple
-from hippopytamus.protocol.interface import Protocol
+from typing import Optional, Dict, Tuple, cast
+from hippopytamus.protocol.interface import Protocol, Servlet
 
 
 class HttpProtocol09(Protocol):
@@ -8,7 +8,7 @@ class HttpProtocol09(Protocol):
         return buffer, True
 
     def prepare_response(self, resp: Dict) -> bytes:
-        return resp['body']
+        return cast(bytes, resp['body'])
 
     def parse_request(self, request: bytes, context) -> Optional[Dict]:
         lines = request.split(b"\r\n")
@@ -113,7 +113,7 @@ class HttpProtocol10(Protocol):
         return buffer, False
 
 
-class HttpService():
+class HttpService(Servlet):
     def process_request(self, request: dict) -> dict:
         print(f"Method: {request['method']}")
         print(f"Resource: {request['uri']}")

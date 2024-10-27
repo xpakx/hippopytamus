@@ -6,7 +6,7 @@ from hippopytamus.protocol.interface import Servlet
 from hippopytamus.server.nonblocking import SelectTCPServer
 from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from typing import Annotated, get_origin, get_args
 from inspect import Signature, Parameter
 import functools
@@ -44,16 +44,16 @@ def extract_underlying_type(name: str, param: Parameter):
     return {"name": name, "class": cls, "annotations": annotations}
 
 
-def get_class_data(cls):
+def get_class_data(cls) -> List[Any]:
     print(cls)
     print(f"Class name: {cls.__name__}")
     print(f"class decorators: {get_class_decorators(cls)}")
     all_methods = inspect.getmembers(cls, predicate=lambda x: callable(x))
-    methods = []
+    methods: List[Any] = []
     for name, method in all_methods:
         if name != "__init__" and name.startswith('__'):
             continue
-        current_method = {}
+        current_method: Dict[str, Any] = {}
         current_method['name'] = name
         current_method['method_handle'] = method
 
@@ -108,7 +108,7 @@ class HippoContainer(Servlet):
 
         self.components.append(component)
 
-    def process_request(self, request: dict) -> dict:
+    def process_request(self, request: Dict) -> Dict:
         # TODO path variables
         # TODO tree-based routing
         # TODO transforming body, path variables, query params
@@ -125,7 +125,7 @@ class HippoContainer(Servlet):
             }
         route = self.routes[uri]
         if route:
-            return route['method'](route['component'], request)
+            return cast(Dict, route['method'](route['component'], request))
         return {}
 
 

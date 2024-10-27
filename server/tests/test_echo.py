@@ -1,5 +1,6 @@
 import pytest
 from hippopytamus.protocol.echo import EchoProtocol, EchoService
+from typing import Dict
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def test_feed_parse(echo_protocol):
 
 def test_parse_request(echo_protocol):
     request = b"example request"
-    context = {}
+    context: Dict = {}
 
     parsed_request = echo_protocol.parse_request(request, context)
 

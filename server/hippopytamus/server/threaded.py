@@ -1,17 +1,18 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
 import threading
+from typing import Dict, Any
 
 
 class ThreadedTCPServer:
     def __init__(self, protocol: Protocol, service: Servlet,
-                 host="localhost", port=8000):
+                 host: str = "localhost", port: int = 8000) -> None:
         self.protocol = protocol
         self.service = service
         self.host = host
         self.port = port
 
-    def listen(self):
+    def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
@@ -28,8 +29,8 @@ class ThreadedTCPServer:
             )
             client.start()
 
-    def thread(self, connection, address):
-        context = {}
+    def thread(self, connection: socket.socket, address: socket._RetAddress):
+        context: Dict[str, Any] = {}
         while True:
             read = False
             data = b''

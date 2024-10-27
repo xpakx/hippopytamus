@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 
 
 class SSHProtocol(Protocol):
-    def prepare_response(self, response) -> bytes:
+    def prepare_response(self, response: bytes) -> bytes:
         return response
 
     def parse_request(self, request: bytes, context: Dict):
