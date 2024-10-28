@@ -1,16 +1,18 @@
 import os
 from typing import Optional, Dict, Tuple, cast
-from hippopytamus.protocol.interface import Protocol, Servlet
+from hippopytamus.protocol.interface import Protocol, Servlet, Request, Response
 
 
 class HttpProtocol09(Protocol):
-    def feed_parse(self, buffer, _):
+    def feed_parse(self, buffer: bytes, _: Dict) -> Tuple[bytes, bool]:
         return buffer, True
 
-    def prepare_response(self, resp: Dict) -> bytes:
+    def prepare_response(self, resp: Response) -> bytes:
+        if not isinstance(resp, dict):
+            raise Exception("Error")
         return cast(bytes, resp['body'])
 
-    def parse_request(self, request: bytes, context) -> Optional[Dict]:
+    def parse_request(self, request: bytes, context: Dict) -> Optional[Dict]:
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
         print(request)
@@ -30,7 +32,9 @@ class HttpProtocol09(Protocol):
 class HttpProtocol10(Protocol):
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
 
-    def prepare_response(self, resp: dict) -> bytes:
+    def prepare_response(self, resp: Response) -> bytes:
+        if not isinstance(resp, dict):
+            raise Exception("Error")
         response = b"HTTP/1.0 "
         response += bytes(str(resp['code']), "ascii")
         response += b" "
@@ -114,7 +118,9 @@ class HttpProtocol10(Protocol):
 
 
 class HttpService(Servlet):
-    def process_request(self, request: dict) -> dict:
+    def process_request(self, request: Request) -> Response:
+        if not isinstance(request, dict):
+            raise Exception("Error")
         print(f"Method: {request['method']}")
         print(f"Resource: {request['uri']}")
         if request['method'] != "GET":

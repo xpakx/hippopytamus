@@ -4,16 +4,16 @@ from typing import Dict
 
 
 @pytest.fixture
-def echo_protocol():
+def echo_protocol() -> EchoProtocol:
     return EchoProtocol()
 
 
 @pytest.fixture
-def echo_service():
+def echo_service() -> EchoService:
     return EchoService()
 
 
-def test_feed_parse(echo_protocol):
+def test_feed_parse(echo_protocol: EchoProtocol) -> None:
     buffer = b"example request"
     remaining_data, complete = echo_protocol.feed_parse(buffer, {})
 
@@ -21,7 +21,7 @@ def test_feed_parse(echo_protocol):
     assert complete is True
 
 
-def test_parse_request(echo_protocol):
+def test_parse_request(echo_protocol: EchoProtocol) -> None:
     request = b"example request"
     context: Dict = {}
 
@@ -30,7 +30,7 @@ def test_parse_request(echo_protocol):
     assert parsed_request == request
 
 
-def test_prepare_response(echo_protocol):
+def test_prepare_response(echo_protocol: EchoProtocol) -> None:
     response = b"example response"
 
     prepared_response = echo_protocol.prepare_response(response)
@@ -38,7 +38,7 @@ def test_prepare_response(echo_protocol):
     assert prepared_response == response
 
 
-def test_process_request(echo_service):
+def test_process_request(echo_service: EchoService) -> None:
     request = b"example request"
 
     processed_response = echo_service.process_request(request)

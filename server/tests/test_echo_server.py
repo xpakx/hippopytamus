@@ -3,16 +3,17 @@ import threading
 import pytest
 from hippopytamus.protocol.echo import EchoProtocol, EchoService
 from hippopytamus.server.main import SimpleTCPServer
+from typing import cast, Generator
 
 
-def get_free_port():
+def get_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("", 0))
-        return s.getsockname()[1]
+        return cast(int, s.getsockname()[1])
 
 
 @pytest.fixture
-def server():
+def server() -> Generator:
     port = get_free_port()
     protocol = EchoProtocol()
     service = EchoService()
@@ -24,7 +25,7 @@ def server():
     yield port
 
 
-def test_echo_server(server):
+def test_echo_server(server: int) -> None:
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(("localhost", server))
 

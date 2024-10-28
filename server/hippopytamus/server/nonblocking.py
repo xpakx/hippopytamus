@@ -16,7 +16,7 @@ class SimpleNonBlockingTCPServer:
         self.port = port
         self.connections: List[Dict[str, Any]] = []
 
-    def accept_connection(self, sock: socket.socket):
+    def accept_connection(self, sock: socket.socket) -> None:
         try:
             connection, address = sock.accept()
             connection.setblocking(False)

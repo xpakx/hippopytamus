@@ -29,7 +29,7 @@ class ThreadedTCPServer:
             )
             client.start()
 
-    def thread(self, connection: socket.socket, address: socket._RetAddress):
+    def thread(self, connection: socket.socket, address: socket._RetAddress) -> None:
         context: Dict[str, Any] = {}
         while True:
             read = False

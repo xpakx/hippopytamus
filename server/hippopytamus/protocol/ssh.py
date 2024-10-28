@@ -1,12 +1,14 @@
-from hippopytamus.protocol.interface import Protocol
+from hippopytamus.protocol.interface import Protocol, Request, Response
 from typing import Dict, Tuple
 
 
 class SSHProtocol(Protocol):
-    def prepare_response(self, response: bytes) -> bytes:
+    def prepare_response(self, response: Request) -> bytes:
+        if not isinstance(response, bytes):
+            raise Exception("Error")
         return response
 
-    def parse_request(self, request: bytes, context: Dict):
+    def parse_request(self, request: bytes, context: Dict) -> Response:
         if 'payload' in context:
             print(context['payload'])
         if 'read' in context:
