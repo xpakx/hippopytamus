@@ -14,13 +14,14 @@ class SimpleNonBlockingTCPServer:
         self.service = service
         self.host = host
         self.port = port
+        self.connections: List[Dict[str, Any]] = []
 
-    def accept_connection(self, sock: socket.socket, connections: List[Dict[str, Any]]):
+    def accept_connection(self, sock: socket.socket):
         try:
             connection, address = sock.accept()
             connection.setblocking(False)
             print(f"new client: {address}")
-            connections.append({
+            self.connections.append({
                 "connection": connection,
                 "address": address,
                 "context": {},
@@ -55,12 +56,12 @@ class SimpleNonBlockingTCPServer:
             to_remove.append(i)
             return False
 
-    def clear_connections(self, connections: List[Dict[str, Any]], to_remove: List[int]) -> None:
+    def clear_connections(self, to_remove: List[int]) -> None:
         for i in to_remove:
             if i > 0:
-                connections[i] = connections.pop()  # swap remove
+                self.connections[i] = self.connections.pop()  # swap remove
             else:
-                connections.pop()
+                self.connections.pop()
             continue
         to_remove.clear()
 
@@ -72,13 +73,12 @@ class SimpleNonBlockingTCPServer:
 
         sock.listen()
         print(sock.getsockname())
-        connections: List[Dict[str, Any]] = []
 
         to_remove: List[int] = []
         while True:
-            self.clear_connections(connections, to_remove)
-            self.accept_connection(sock, connections)
-            for i, conn in enumerate(connections):
+            self.clear_connections(to_remove)
+            self.accept_connection(sock)
+            for i, conn in enumerate(self.connections):
                 read = self.read(conn, i, to_remove)
                 if read:
                     self.process(conn, i, to_remove)
