@@ -8,11 +8,12 @@ from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
 from typing import Dict, Any, cast, Type
 from typing import Annotated, get_origin, get_args
+from typing import Protocol
 from inspect import Signature, Parameter
 import functools
 
 
-def Component(cls):
+def Component(cls: Type) -> Type:
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
     cls.__hippo_decorators.append("Component")
@@ -22,6 +23,11 @@ def Component(cls):
 Controller = Component
 Service = Component
 Repository = Component
+
+
+class HippoDecoratorFunc(Protocol):
+    __hippo_decorator: Dict[str, Any]
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 def get_class_decorators(cls):
@@ -142,11 +148,12 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                         headers: strList = [], method: strList = [],
                         name: str = "", params: strList = [],
                         produces: strList = [], value: strList = []):
-    def decorator(func):
+    def decorator(func) -> HippoDecoratorFunc:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
-        wrapper.__hippo_decorator = {  # type: ignore
+        hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
+        hippo_wrapper.__hippo_decorator = {
                 "__decorator__": "RequestMapping",
                 "path": getListForStrList(path),
                 "name": name,
@@ -157,7 +164,7 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                 "produces": getListForStrList(produces),
                 "value": getListForStrList(value),
             }
-        return wrapper
+        return hippo_wrapper
     return decorator
 
 
