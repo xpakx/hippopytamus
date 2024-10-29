@@ -2,11 +2,11 @@ import pkgutil
 import inspect
 import os
 import importlib
-from hippopytamus.protocol.interface import Servlet
+from hippopytamus.protocol.interface import Servlet, Response, Request
 from hippopytamus.server.nonblocking import SelectTCPServer
 from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
-from typing import Dict, Any, cast
+from typing import Dict, Any, cast, Type
 from typing import Annotated, get_origin, get_args
 from inspect import Signature, Parameter
 import functools
@@ -90,7 +90,7 @@ class HippoContainer(Servlet):
     components: List[Any] = []
     routes: Dict[str, Any] = {}
 
-    def register(self, cls: classmethod):
+    def register(self, cls: Type):
         # TODO dependency injection
         # TODO shouldn't be created right now
         component = cls()
@@ -108,7 +108,9 @@ class HippoContainer(Servlet):
 
         self.components.append(component)
 
-    def process_request(self, request: Dict) -> Dict:
+    def process_request(self, request: Request) -> Response:
+        if not isinstance(request, dict):
+            raise Exception("Error")
         # TODO path variables
         # TODO tree-based routing
         # TODO transforming body, path variables, query params
@@ -144,7 +146,7 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
-        wrapper.__hippo_decorator = {
+        wrapper.__hippo_decorator = {  # type: ignore
                 "__decorator__": "RequestMapping",
                 "path": getListForStrList(path),
                 "name": name,
