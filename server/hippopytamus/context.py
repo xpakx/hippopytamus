@@ -6,11 +6,14 @@ from hippopytamus.protocol.interface import Servlet, Response, Request
 from hippopytamus.server.nonblocking import SelectTCPServer
 from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
-from typing import Dict, Any, cast, Type
+from typing import Dict, Any, cast, Type, TypeVar
 from typing import Annotated, get_origin, get_args
-from typing import Protocol
+from typing import Protocol, Callable, Optional
+from types import ModuleType
 from inspect import Signature, Parameter
 import functools
+
+T = TypeVar("T")
 
 
 def Component(cls: Type) -> Type:
@@ -36,10 +39,10 @@ def get_class_decorators(cls):
     return []
 
 
-def extract_underlying_type(name: str, param: Parameter):
+def extract_underlying_type(name: str, param: Parameter) -> Optional[Dict[str, Any]]:
     cls = param.annotation
     if cls is inspect._empty:
-        return None, []
+        return None
 
     annotations = []
     while get_origin(cls) is Annotated:
@@ -50,7 +53,7 @@ def extract_underlying_type(name: str, param: Parameter):
     return {"name": name, "class": cls, "annotations": annotations}
 
 
-def get_class_data(cls) -> List[Any]:
+def get_class_data(cls: Type) -> List[Any]:
     print(cls)
     print(f"Class name: {cls.__name__}")
     print(f"class decorators: {get_class_decorators(cls)}")
@@ -96,7 +99,7 @@ class HippoContainer(Servlet):
     components: List[Any] = []
     routes: Dict[str, Any] = {}
 
-    def register(self, cls: Type):
+    def register(self, cls: Type) -> None:
         # TODO dependency injection
         # TODO shouldn't be created right now
         component = cls()
@@ -147,8 +150,9 @@ def getListForStrList(arg: strList) -> List[str]:
 def get_request_wrapper(path: strList = [], consumes: strList = [],
                         headers: strList = [], method: strList = [],
                         name: str = "", params: strList = [],
-                        produces: strList = [], value: strList = []):
-    def decorator(func) -> HippoDecoratorFunc:
+                        produces: strList = [], value: strList = []
+                        ) -> Callable[[Callable], HippoDecoratorFunc]:
+    def decorator(func: Callable) -> HippoDecoratorFunc:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
@@ -213,11 +217,11 @@ def PostMapping(path: strList = [], consumes: strList = [],
 
 
 class AnnotationMetadata:
-    def __init__(self, metadata: Dict):
+    def __init__(self, metadata: Dict) -> None:
         self.metadata = metadata
 
 
-def RequestParam(cls, name: str = "", defaultValue: Any = None,
+def RequestParam(cls: T, name: str = "", defaultValue: Any = None,
                  required: bool = False):
     metadata = {
             "__decorator__": "RequestParam",
@@ -228,7 +232,7 @@ def RequestParam(cls, name: str = "", defaultValue: Any = None,
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def RequestBody(cls, required: bool = False):
+def RequestBody(cls: T, required: bool = False):
     metadata = {
             "__decorator__": "RequestBody",
             "required": required
@@ -236,7 +240,7 @@ def RequestBody(cls, required: bool = False):
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def PathVariable(cls, name: str = "", required: bool = False):
+def PathVariable(cls: T, name: str = "", required: bool = False):
     metadata = {
             "__decorator__": "PathVariable",
             "name": name,
@@ -246,7 +250,7 @@ def PathVariable(cls, name: str = "", required: bool = False):
 
 
 class HippoApp:
-    def __init__(self, module_name: str):
+    def __init__(self, module_name: str) -> None:
         classes = self.get_module_classes(module_name)
         print(classes)
         self.container = HippoContainer()
@@ -254,13 +258,13 @@ class HippoApp:
             self.container.register(cls)
         self.server = SelectTCPServer(HttpProtocol10(), self.container)
 
-    def inspect_module(self, module):
+    def inspect_module(self, module: ModuleType) -> Any:
         return inspect.getmembers(module, inspect.isclass)
 
-    def run(self):
+    def run(self) -> None:
         self.server.listen()
 
-    def get_module_classes(self, package_name: str):
+    def get_module_classes(self, package_name: str) -> List[Any]:
         # TODO not a package
         package = importlib.import_module(package_name)
         if not package or not package.__file__:
