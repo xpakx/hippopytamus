@@ -8,7 +8,7 @@ from hippopytamus.protocol.http import HttpProtocol10
 from typing import get_type_hints, Union, List
 from typing import Dict, Any, cast, Type, TypeVar
 from typing import Annotated, get_origin, get_args
-from typing import Protocol, Callable, Optional
+from typing import Protocol, Callable, Optional, _SpecialForm
 from types import ModuleType
 from inspect import Signature, Parameter
 import functools
@@ -16,11 +16,15 @@ import functools
 T = TypeVar("T")
 
 
-def Component(cls: Type) -> Type:
+class HippoDecoratorClass(Protocol):
+    __hippo_decorators: List[str]
+
+
+def Component(cls: Type) -> HippoDecoratorClass:
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
     cls.__hippo_decorators.append("Component")
-    return cls
+    return cast(HippoDecoratorClass, cls)
 
 
 Controller = Component
@@ -33,9 +37,10 @@ class HippoDecoratorFunc(Protocol):
     def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
-def get_class_decorators(cls):
-    if hasattr(cls, '__hippo_decorators'):
-        return cls.__hippo_decorators
+def get_class_decorators(cls: Type) -> List[str]:
+    hippo_cls = cast(HippoDecoratorClass, cls)
+    if hasattr(hippo_cls, '__hippo_decorators'):
+        return hippo_cls.__hippo_decorators
     return []
 
 
@@ -154,7 +159,7 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                         ) -> Callable[[Callable], HippoDecoratorFunc]:
     def decorator(func: Callable) -> HippoDecoratorFunc:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs):  # type: ignore
             return func(*args, **kwargs)
         hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
         hippo_wrapper.__hippo_decorator = {
@@ -175,7 +180,8 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
 def RequestMapping(path: strList = [], consumes: strList = [],
                    headers: strList = [], method: strList = [],
                    name: str = "", params: strList = [],
-                   produces: strList = [], value: strList = []):
+                   produces: strList = [], value: strList = []
+                   ) -> Callable:
     # trick to let use decorator with or without parentheses
     if callable(path):
         # used without parentheses, called by system,
@@ -193,7 +199,7 @@ def RequestMapping(path: strList = [], consumes: strList = [],
 def GetMapping(path: strList = [], consumes: strList = [],
                headers: strList = [], name: str = "",
                params: strList = [], produces: strList = [],
-               value: strList = []):
+               value: strList = []) -> Callable:
     if callable(path):
         func = path
         wrapper = get_request_wrapper(method="GET")
@@ -206,7 +212,7 @@ def GetMapping(path: strList = [], consumes: strList = [],
 def PostMapping(path: strList = [], consumes: strList = [],
                 headers: strList = [], name: str = "",
                 params: strList = [], produces: strList = [],
-                value: strList = []):
+                value: strList = []) -> Callable:
     if callable(path):
         func = path
         wrapper = get_request_wrapper(method="POST")
@@ -221,8 +227,11 @@ class AnnotationMetadata:
         self.metadata = metadata
 
 
+type HippoArgDecorator = Annotated[_SpecialForm, Any]
+
+
 def RequestParam(cls: T, name: str = "", defaultValue: Any = None,
-                 required: bool = False):
+                 required: bool = False) -> HippoArgDecorator:
     metadata = {
             "__decorator__": "RequestParam",
             "name": name,
@@ -232,7 +241,7 @@ def RequestParam(cls: T, name: str = "", defaultValue: Any = None,
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def RequestBody(cls: T, required: bool = False):
+def RequestBody(cls: T, required: bool = False) -> HippoArgDecorator:
     metadata = {
             "__decorator__": "RequestBody",
             "required": required
@@ -240,7 +249,7 @@ def RequestBody(cls: T, required: bool = False):
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def PathVariable(cls: T, name: str = "", required: bool = False):
+def PathVariable(cls: T, name: str = "", required: bool = False) -> HippoArgDecorator:
     metadata = {
             "__decorator__": "PathVariable",
             "name": name,
