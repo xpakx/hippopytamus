@@ -1,4 +1,5 @@
-from hippopytamus.context import Controller, GetMapping, RequestBody
+from hippopytamus.core.annotation import GetMapping, RequestBody
+from hippopytamus.core.annotation import Controller
 from typing import Dict, Tuple, Optional
 import os
 
