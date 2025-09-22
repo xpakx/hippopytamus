@@ -1,21 +1,21 @@
-[tool.poetry]
+[project]
 name = "hippopytamus"
 version = "0.1.0"
 description = ""
-authors = ["xpakx <55586470+xpakx@users.noreply.github.com>"]
+authors = [{ name = "xpakx", email = "55586470+xpakx@users.noreply.github.com" }]
+requires-python = "~=3.12"
 readme = "README.md"
 
-[tool.poetry.dependencies]
-python = "^3.12"
+[dependency-groups]
+test = ["pytest>=8.3.3,<9"]
+dev = ["mypy>=1.13.0,<2"]
 
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.3"
-
-
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.13.0"
+[tool.uv]
+default-groups = [
+    "test",
+    "dev",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
