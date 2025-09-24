@@ -2,6 +2,7 @@ from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List
 from typing import Dict, Any, cast, Type
 from hippopytamus.core.extractor import get_class_data
+from urllib.parse import urlparse, parse_qs
 
 
 class HippoContainer(Servlet):
@@ -21,6 +22,7 @@ class HippoContainer(Servlet):
             request_param_num = None
             signature = method.get('signature', [])
             params_len = len(signature)
+            rparams = []
             for param_num, param in enumerate(signature):
                 for dec in param.get('annotations', []):
                     if dec.get('__decorator__') == "RequestBody":
@@ -39,9 +41,12 @@ class HippoContainer(Servlet):
                         rparam_name = dec.get('name')
                         if not rparam_name:
                             rparam_name = param.get('name')
-                        print(rparam_name)
-                        rparam_default = dec.get('defaultValue')
-                        print(rparam_default)
+                        rparams.append({
+                                "name": rparam_name,
+                                "param": param_num,
+                                "defaultValue": dec.get('defaultValue'),
+                                "required": dec.get('required')
+                        })
                     else:
                         print("Param", param_num, "in", method_name, "is not annotated")
 
@@ -54,7 +59,8 @@ class HippoContainer(Servlet):
                                 "component": component,
                                 "method": method['method_handle'],
                                 "bodyParam": request_param_num,
-                                "paramLen": params_len
+                                "paramLen": params_len,
+                                "requestParams": rparams,
                         }
 
         self.components.append(component)
@@ -67,6 +73,10 @@ class HippoContainer(Servlet):
         # TODO extracting and transforming body, path variables, query params
         # TODO transforming response
         uri = request['uri']
+        parsed = urlparse(uri)
+        query_params = parse_qs(parsed.query)
+        uri = parsed.path
+
         if uri not in self.routes:
             return {
                     "code": 404,
@@ -81,5 +91,12 @@ class HippoContainer(Servlet):
             params = [None] * route['paramLen']
             if route['bodyParam'] is not None:
                 params[route['bodyParam']] = request
+            for rparam in route['requestParams']:
+                value = query_params.get(rparam['name'])
+                if isinstance(value, list):
+                    value = value[0] if len(value) > 0 else None
+                if value is None and rparam['defaultValue'] is not None:
+                    value = rparam['defaultValue']
+                params[rparam['param']] = value
             return cast(Dict, route['method'](route['component'], *params))
         return {}
