@@ -14,6 +14,20 @@ class HippoContainer(Servlet):
         component = cls()
         metadata = get_class_data(cls)
         for method in metadata:
+            method_name = method.get('name', 'unknown')
+            print(len(method.get('signature', [])), 'params in', method_name)
+
+            param_num = 0
+            request_param_num = None
+            signature = method.get('signature', [])
+            for param_num, param in enumerate(signature):
+                for dec in param.get('annotations', []):
+                    if dec.get('__decorator__') == "RequestBody":
+                        print("Found @RequestBody for", method_name, "at", param_num)
+                        request_param_num = param_num
+                    else:
+                        print("Param", param_num, "in", method_name, "is not annotated")
+
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     # TODO http methods
@@ -21,7 +35,8 @@ class HippoContainer(Servlet):
                     for path in annotation['path']:
                         self.routes[path] = {
                                 "component": component,
-                                "method": method['method_handle']
+                                "method": method['method_handle'],
+                                "bodyParam": request_param_num
                         }
 
         self.components.append(component)
@@ -31,7 +46,7 @@ class HippoContainer(Servlet):
             raise Exception("Error")
         # TODO path variables
         # TODO tree-based routing
-        # TODO transforming body, path variables, query params
+        # TODO extracting and transforming body, path variables, query params
         # TODO transforming response
         uri = request['uri']
         if uri not in self.routes:
@@ -45,5 +60,9 @@ class HippoContainer(Servlet):
             }
         route = self.routes[uri]
         if route:
-            return cast(Dict, route['method'](route['component'], request))
+            if route['bodyParam'] is not None:
+                # TODO: diff bodyParam positions
+                return cast(Dict, route['method'](route['component'], request))
+            else:
+                return cast(Dict, route['method'](route['component']))
         return {}

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from typing import Dict, Any, cast, Type
 from typing import Protocol, Union, Annotated
 from typing import Callable, _SpecialForm
@@ -134,7 +134,7 @@ def RequestBody(cls: T, required: bool = False) -> HippoArgDecorator:
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def PathVariable(cls: T, name: str = "", required: bool = False) -> HippoArgDecorator:
+def PathVariable(cls: T, name: Optional[str] = None, required: bool = False) -> HippoArgDecorator:
     metadata = {
             "__decorator__": "PathVariable",
             "name": name,
