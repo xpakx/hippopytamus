@@ -88,13 +88,16 @@ class HippoContainer(Servlet):
             }
         route = self.routes[uri]
         if route:
-            params = [None] * route['paramLen']
+            params: List[Any] = [None] * route['paramLen']
             if route['bodyParam'] is not None:
                 params[route['bodyParam']] = request
             for rparam in route['requestParams']:
-                value = query_params.get(rparam['name'])
-                if isinstance(value, list):
-                    value = value[0] if len(value) > 0 else None
+                valueList = query_params.get(rparam['name'])
+                value = None
+                if isinstance(valueList, list):
+                    value = valueList[0] if len(valueList) > 0 else None
+                else:
+                    value = valueList
                 if value is None and rparam['defaultValue'] is not None:
                     value = rparam['defaultValue']
                 params[rparam['param']] = value
