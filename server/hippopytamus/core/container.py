@@ -20,6 +20,7 @@ class HippoContainer(Servlet):
             param_num = 0
             request_param_num = None
             signature = method.get('signature', [])
+            params_len = len(signature)
             for param_num, param in enumerate(signature):
                 for dec in param.get('annotations', []):
                     if dec.get('__decorator__') == "RequestBody":
@@ -52,7 +53,8 @@ class HippoContainer(Servlet):
                         self.routes[path] = {
                                 "component": component,
                                 "method": method['method_handle'],
-                                "bodyParam": request_param_num
+                                "bodyParam": request_param_num,
+                                "paramLen": params_len
                         }
 
         self.components.append(component)
@@ -76,9 +78,8 @@ class HippoContainer(Servlet):
             }
         route = self.routes[uri]
         if route:
+            params = [None] * route['paramLen']
             if route['bodyParam'] is not None:
-                # TODO: diff bodyParam positions
-                return cast(Dict, route['method'](route['component'], request))
-            else:
-                return cast(Dict, route['method'](route['component']))
+                params[route['bodyParam']] = request
+            return cast(Dict, route['method'](route['component'], *params))
         return {}
