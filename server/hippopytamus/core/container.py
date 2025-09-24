@@ -25,6 +25,22 @@ class HippoContainer(Servlet):
                     if dec.get('__decorator__') == "RequestBody":
                         print("Found @RequestBody for", method_name, "at", param_num)
                         request_param_num = param_num
+                    elif dec.get('__decorator__') == "PathVariable":
+                        print("Found @PathVariable for", method_name, "at", param_num)
+                        path_name = dec.get('name')
+                        if not path_name:
+                            path_name = param.get('name')
+                        print(path_name)
+                    elif dec.get('__decorator__') == "RequestHeader":
+                        print("Found @RequestHeader for", method_name, "at", param_num)
+                    elif dec.get('__decorator__') == "RequestParam":
+                        print("Found @RequestParam for", method_name, "at", param_num)
+                        rparam_name = dec.get('name')
+                        if not rparam_name:
+                            rparam_name = param.get('name')
+                        print(rparam_name)
+                        rparam_default = dec.get('defaultValue')
+                        print(rparam_default)
                     else:
                         print("Param", param_num, "in", method_name, "is not annotated")
 
