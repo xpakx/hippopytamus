@@ -78,7 +78,6 @@ class HippoContainer(Servlet):
         # TODO path variables
         # TODO tree-based routing
         # TODO extracting and transforming body, path variables, query params
-        # TODO transforming response
         uri = request['uri']
         parsed = urlparse(uri)
         query_params = parse_qs(parsed.query)
@@ -108,5 +107,26 @@ class HippoContainer(Servlet):
                 if value is None and rparam['defaultValue'] is not None:
                     value = rparam['defaultValue']
                 params[rparam['param']] = value
-            return cast(Dict, route['method'](route['component'], *params))
+            resp = route['method'](route['component'], *params)
+            return self.transform_response(resp)
         return {}
+
+    def transform_response(self, resp: Response) -> Dict[str, Any]:
+        # TODO add ResponseBody, and transform pydantic/pydantic-like types
+        # jsonify dicts
+        headers = {"Server": "Hippopytamus", "Content-Type": "text/html"}
+        if not resp:
+            return {"code": 200, "headers": headers}
+        if (type(resp) is str):
+            return {
+                    "code": 200,
+                    "body": bytes(resp, "utf-8"),
+                    "headers": headers,
+                    }
+        if (type(resp) is bytes):
+            return {
+                    "code": 200,
+                    "body": resp,
+                    "headers": headers,
+                    }
+        return cast(Dict, resp)
