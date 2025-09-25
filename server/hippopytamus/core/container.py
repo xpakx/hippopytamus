@@ -23,6 +23,7 @@ class HippoContainer(Servlet):
             signature = method.get('signature', [])
             params_len = len(signature)
             rparams = []
+            pathvars = []
             for param_num, param in enumerate(signature):
                 for dec in param.get('annotations', []):
                     if dec.get('__decorator__') == "RequestBody":
@@ -33,7 +34,12 @@ class HippoContainer(Servlet):
                         path_name = dec.get('name')
                         if not path_name:
                             path_name = param.get('name')
-                        print(path_name)
+                        pathvars.append({
+                                "name": path_name,
+                                "param": param_num,
+                                "defaultValue": dec.get('defaultValue'),
+                                "required": dec.get('required')
+                        })
                     elif dec.get('__decorator__') == "RequestHeader":
                         print("Found @RequestHeader for", method_name, "at", param_num)
                     elif dec.get('__decorator__') == "RequestParam":
@@ -61,6 +67,7 @@ class HippoContainer(Servlet):
                                 "bodyParam": request_param_num,
                                 "paramLen": params_len,
                                 "requestParams": rparams,
+                                "pathVariables": pathvars,
                         }
 
         self.components.append(component)
