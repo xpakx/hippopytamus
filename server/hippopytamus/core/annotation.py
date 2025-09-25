@@ -3,6 +3,7 @@ from typing import Dict, Any, cast, Type
 from typing import Protocol, Union, Annotated
 from typing import Callable, _SpecialForm
 from typing import TypeVar
+import inspect
 import functools
 
 
@@ -11,11 +12,14 @@ T = TypeVar("T")
 
 class HippoDecoratorClass(Protocol):
     __hippo_decorators: List[str]
+    __hippo_argdecorators: List[str]
 
 
 def Component(cls: Type) -> HippoDecoratorClass:
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
+    if not hasattr(cls, "__hippo_decorators"):
+        cls.__hippo_argdecorators = []
     cls.__hippo_decorators.append("Component")
     return cast(HippoDecoratorClass, cls)
 
@@ -43,22 +47,42 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                         produces: strList = [], value: strList = []
                         ) -> Callable[[Callable], HippoDecoratorFunc]:
     def decorator(func: Callable) -> HippoDecoratorFunc:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):  # type: ignore
-            return func(*args, **kwargs)
-        hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
-        hippo_wrapper.__hippo_decorator = {
-                "__decorator__": "RequestMapping",
-                "path": getListForStrList(path),
-                "name": name,
-                "consumes": getListForStrList(consumes),
-                "headers": getListForStrList(headers),
-                "method": getListForStrList(method),
-                "params": getListForStrList(params),
-                "produces": getListForStrList(produces),
-                "value": getListForStrList(value),
-            }
-        return hippo_wrapper
+        if inspect.isclass(func):
+            print("Decorated a class!")
+            if not hasattr(func, "__hippo_decorators"):
+                func.__hippo_decorators = []
+            if not hasattr(func, "__hippo_argdecorators"):
+                func.__hippo_argdecorators = []
+            func.__hippo_argdecorators.append(
+                    {
+                        "__decorator__": "RequestMapping",
+                        "path": getListForStrList(path),
+                        "name": name,
+                        "consumes": getListForStrList(consumes),
+                        "headers": getListForStrList(headers),
+                        "method": getListForStrList(method),
+                        "params": getListForStrList(params),
+                        "produces": getListForStrList(produces),
+                        "value": getListForStrList(value),
+                        })
+            return cast(HippoDecoratorClass, func)
+        elif inspect.isfunction(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):  # type: ignore
+                return func(*args, **kwargs)
+            hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
+            hippo_wrapper.__hippo_decorator = {
+                    "__decorator__": "RequestMapping",
+                    "path": getListForStrList(path),
+                    "name": name,
+                    "consumes": getListForStrList(consumes),
+                    "headers": getListForStrList(headers),
+                    "method": getListForStrList(method),
+                    "params": getListForStrList(params),
+                    "produces": getListForStrList(produces),
+                    "value": getListForStrList(value),
+                }
+            return hippo_wrapper
     return decorator
 
 
