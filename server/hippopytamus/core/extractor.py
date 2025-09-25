@@ -15,6 +15,13 @@ def get_class_decorators(cls: Type) -> List[str]:
     return []
 
 
+def get_class_argdecorators(cls: Type) -> List[Dict[str, Any]]:
+    hippo_cls = cast(HippoDecoratorClass, cls)
+    if hasattr(hippo_cls, '__hippo_argdecorators'):
+        return hippo_cls.__hippo_argdecorators
+    return []
+
+
 def extract_underlying_type(name: str, param: Parameter) -> Optional[Dict[str, Any]]:
     cls = param.annotation
     if cls is inspect._empty:
@@ -33,6 +40,7 @@ def get_class_data(cls: Type) -> List[Any]:
     print(cls)
     print(f"Class name: {cls.__name__}")
     print(f"class decorators: {get_class_decorators(cls)}")
+    print(f"class argdecorators: {get_class_argdecorators(cls)}")
     all_methods = inspect.getmembers(cls, predicate=lambda x: callable(x))
     methods: List[Any] = []
     for name, method in all_methods:

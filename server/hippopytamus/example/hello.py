@@ -5,7 +5,6 @@ from hippopytamus.core.annotation import (
 )
 
 
-# TODO: class level @RequestMapping
 @Controller
 @RequestMapping("/h2")
 class HelloController:

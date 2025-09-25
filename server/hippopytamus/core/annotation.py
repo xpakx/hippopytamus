@@ -12,7 +12,7 @@ T = TypeVar("T")
 
 class HippoDecoratorClass(Protocol):
     __hippo_decorators: List[str]
-    __hippo_argdecorators: List[str]
+    __hippo_argdecorators: List[Dict[str, Any]]
 
 
 def Component(cls: Type) -> HippoDecoratorClass:
@@ -45,10 +45,9 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                         headers: strList = [], method: strList = [],
                         name: str = "", params: strList = [],
                         produces: strList = [], value: strList = []
-                        ) -> Callable[[Callable], HippoDecoratorFunc]:
-    def decorator(func: Callable) -> HippoDecoratorFunc:
+                        ) -> Callable[[Callable], Union[HippoDecoratorFunc, HippoDecoratorClass]]:
+    def decorator(func: Callable) -> Union[HippoDecoratorFunc, HippoDecoratorClass]:
         if inspect.isclass(func):
-            print("Decorated a class!")
             if not hasattr(func, "__hippo_decorators"):
                 func.__hippo_decorators = []
             if not hasattr(func, "__hippo_argdecorators"):
@@ -66,7 +65,7 @@ def get_request_wrapper(path: strList = [], consumes: strList = [],
                         "value": getListForStrList(value),
                         })
             return cast(HippoDecoratorClass, func)
-        elif inspect.isfunction(func):
+        else:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):  # type: ignore
                 return func(*args, **kwargs)

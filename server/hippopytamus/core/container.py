@@ -1,7 +1,7 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List
 from typing import Dict, Any, cast, Type
-from hippopytamus.core.extractor import get_class_data
+from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from urllib.parse import urlparse, parse_qs
 
 
@@ -14,6 +14,14 @@ class HippoContainer(Servlet):
         # TODO shouldn't be created right now
         component = cls()
         metadata = get_class_data(cls)
+        class_decorators = get_class_argdecorators(cls)
+        url_prepend = None
+        for dec in class_decorators:
+            if dec['__decorator__'] == "RequestMapping":
+                paths = dec['path']
+                if len(paths) > 0:
+                    url_prepend = paths[0]  # TODO: multiple paths?
+
         for method in metadata:
             method_name = method.get('name', 'unknown')
             print(len(method.get('signature', [])), 'params in', method_name)
@@ -59,9 +67,9 @@ class HippoContainer(Servlet):
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     # TODO http methods
-                    # TODO append class-defined path
                     for path in annotation['path']:
-                        self.routes[path] = {
+                        p = f"{url_prepend}{path}" if url_prepend else path
+                        self.routes[p] = {
                                 "component": component,
                                 "method": method['method_handle'],
                                 "bodyParam": request_param_num,
