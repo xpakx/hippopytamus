@@ -7,7 +7,10 @@ from urllib.parse import urlparse, parse_qs
 
 class HippoContainer(Servlet):
     components: List[Any] = []
-    routes: Dict[str, Any] = {}
+    getRoutes: Dict[str, Any] = {}
+    postRoutes: Dict[str, Any] = {}
+    putRoutes: Dict[str, Any] = {}
+    deleteRoutes: Dict[str, Any] = {}
 
     def register(self, cls: Type) -> None:
         # TODO dependency injection
@@ -74,17 +77,25 @@ class HippoContainer(Servlet):
 
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
-                    # TODO http methods
-                    for path in annotation['path']:
-                        p = f"{url_prepend}{path}" if url_prepend else path
-                        self.routes[p] = {
-                                "component": component,
-                                "method": method['method_handle'],
-                                "bodyParam": request_param_num,
-                                "paramLen": params_len,
-                                "requestParams": rparams,
-                                "pathVariables": pathvars,
-                        }
+                    mapping_meth = annotation.get('method', 'GET')
+                    for meth in mapping_meth:
+                        routes = self.getRoutes
+                        if meth == 'POST':
+                            routes = self.postRoutes
+                        if meth == 'PUT':
+                            routes = self.putRoutes
+                        if meth == 'DELETE':
+                            routes = self.deleteRoutes
+                        for path in annotation['path']:
+                            p = f"{url_prepend}{path}" if url_prepend else path
+                            routes[p] = {
+                                    "component": component,
+                                    "method": method['method_handle'],
+                                    "bodyParam": request_param_num,
+                                    "paramLen": params_len,
+                                    "requestParams": rparams,
+                                    "pathVariables": pathvars,
+                            }
 
         self.components.append(component)
 
@@ -99,16 +110,25 @@ class HippoContainer(Servlet):
         query_params = parse_qs(parsed.query)
         uri = parsed.path
 
-        if uri not in self.routes:
+        mapping_meth = request.get('method', 'GET')
+        routes = self.getRoutes
+        if mapping_meth == 'POST':
+            routes = self.postRoutes
+        if mapping_meth == 'PUT':
+            routes = self.putRoutes
+        if mapping_meth == 'DELETE':
+            routes = self.deleteRoutes
+
+        if uri not in routes:
             return {
                     "code": 404,
-                    "body": b"<html><head></head><body><h1>Nof found</h1></body></html>",
+                    "body": b"<html><head></head><body><h1>Not found</h1></body></html>",
                     "headers": {
                         "Server": "Hippopytamus",
                         "Content-Type": "text/html"
                     }
             }
-        route = self.routes[uri]
+        route = routes[uri]
         if route:
             params: List[Any] = [None] * route['paramLen']
             if route['bodyParam'] is not None:
