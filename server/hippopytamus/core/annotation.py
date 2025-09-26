@@ -18,7 +18,7 @@ class HippoDecoratorClass(Protocol):
 def Component(cls: Type) -> HippoDecoratorClass:
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
-    if not hasattr(cls, "__hippo_decorators"):
+    if not hasattr(cls, "__hippo_argdecorators"):
         cls.__hippo_argdecorators = []
     cls.__hippo_decorators.append("Component")
     return cast(HippoDecoratorClass, cls)
