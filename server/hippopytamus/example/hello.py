@@ -29,7 +29,6 @@ class HelloController:
     ) -> str:
         return f"<h1>Sum = {a + b}</h1>"
 
-    # TODO: transforming json
     @PostMapping("/echo")
     def echo_body(self, body: RequestBody(dict)) -> str:
         msg = body.get("message", "(no message)")

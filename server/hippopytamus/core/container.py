@@ -3,6 +3,7 @@ from typing import List
 from typing import Dict, Any, cast, Type
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from urllib.parse import urlparse, parse_qs
+import json
 
 
 class HippoContainer(Servlet):
@@ -31,6 +32,7 @@ class HippoContainer(Servlet):
 
             param_num = 0
             request_param_num = None
+            request_param_type = None
             signature = method.get('signature', [])
             params_len = len(signature)
             rparams = []
@@ -46,6 +48,7 @@ class HippoContainer(Servlet):
                     if dec.get('__decorator__') == "RequestBody":
                         print("Found @RequestBody for", method_name, "at", param_num)
                         request_param_num = param_num
+                        request_param_type = param.get('class')
                     elif dec.get('__decorator__') == "PathVariable":
                         print("Found @PathVariable for", method_name, "at", param_num)
                         path_name = dec.get('name')
@@ -92,6 +95,7 @@ class HippoContainer(Servlet):
                                     "component": component,
                                     "method": method['method_handle'],
                                     "bodyParam": request_param_num,
+                                    "bodyParamType": request_param_type,
                                     "paramLen": params_len,
                                     "requestParams": rparams,
                                     "pathVariables": pathvars,
@@ -131,8 +135,15 @@ class HippoContainer(Servlet):
         route = routes[uri]
         if route:
             params: List[Any] = [None] * route['paramLen']
+
+            requestBody = request.get('body')
+            bodyParamType = route.get('bodyParamType')
+            if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
+                if bodyParamType in [dict, Dict]:
+                    requestBody = json.loads(requestBody)
             if route['bodyParam'] is not None:
-                params[route['bodyParam']] = request
+                params[route['bodyParam']] = requestBody
+
             for rparam in route['requestParams']:
                 valueList = query_params.get(rparam['name'])
                 value = None
