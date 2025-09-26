@@ -8,21 +8,24 @@ from hippopytamus.core.annotation import (
 @Controller
 @RequestMapping("/h2")
 class HelloController:
-    # TODO: error with signature if no init specified
-    def __init__(self):
-        print("Hello from service!")
-
     # TODO: path variables
     @GetMapping("/shout/{word}")
     def shout(self, word: PathVariable(str)) -> str:
         return f"<h1>{word.upper()}!!!</h1>"
 
-    # TODO: transforming request params to int
     @GetMapping("/add")
     def add_numbers(
         self,
         a: RequestParam(int),
         b: RequestParam(int, defaultValue=0),
+    ) -> str:
+        return f"<h1>Sum = {a + b}</h1>"
+
+    @GetMapping("/concat")
+    def concat_numbers(
+        self,
+        a: RequestParam(str),
+        b: RequestParam(str, defaultValue='0'),
     ) -> str:
         return f"<h1>Sum = {a + b}</h1>"
 

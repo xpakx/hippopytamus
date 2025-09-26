@@ -33,6 +33,12 @@ class HippoContainer(Servlet):
             rparams = []
             pathvars = []
             for param_num, param in enumerate(signature):
+                if not param:
+                    # TODO: these are not type annotated
+                    # might be nice to add "Unknown" or "Any"
+                    # in get_class_data and guess their
+                    # type and function depending on the context
+                    continue
                 for dec in param.get('annotations', []):
                     if dec.get('__decorator__') == "RequestBody":
                         print("Found @RequestBody for", method_name, "at", param_num)
@@ -46,7 +52,8 @@ class HippoContainer(Servlet):
                                 "name": path_name,
                                 "param": param_num,
                                 "defaultValue": dec.get('defaultValue'),
-                                "required": dec.get('required')
+                                "required": dec.get('required'),
+                                "type": param.get('class')
                         })
                     elif dec.get('__decorator__') == "RequestHeader":
                         print("Found @RequestHeader for", method_name, "at", param_num)
@@ -59,7 +66,8 @@ class HippoContainer(Servlet):
                                 "name": rparam_name,
                                 "param": param_num,
                                 "defaultValue": dec.get('defaultValue'),
-                                "required": dec.get('required')
+                                "required": dec.get('required'),
+                                "type": param.get('class')
                         })
                     else:
                         print("Param", param_num, "in", method_name, "is not annotated")
@@ -112,6 +120,10 @@ class HippoContainer(Servlet):
                     value = valueList[0] if len(valueList) > 0 else None
                 else:
                     value = valueList
+                if value is not None and type(value) is not rparam['type']:
+                    # TODO: other primitive types (?)
+                    if rparam['type'] is int:
+                        value = int(value)
                 if value is None and rparam['defaultValue'] is not None:
                     value = rparam['defaultValue']
                 params[rparam['param']] = value
