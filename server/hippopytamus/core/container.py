@@ -1,9 +1,10 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
-from typing import List
-from typing import Dict, Any, cast, Type
+from typing import List, Tuple
+from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from urllib.parse import urlparse, parse_qs
 import json
+import re
 
 
 class HippoContainer(Servlet):
@@ -123,7 +124,14 @@ class HippoContainer(Servlet):
         if mapping_meth == 'DELETE':
             routes = self.deleteRoutes
 
-        if uri not in routes:
+        route = routes.get(uri)
+        pathvars = {}
+        print(route)
+        if not route:
+            route, pathvars = self.try_find_varroute(routes, uri)
+            print(route, pathvars)
+
+        if not route:
             return {
                     "code": 404,
                     "body": b"<html><head></head><body><h1>Not found</h1></body></html>",
@@ -132,7 +140,6 @@ class HippoContainer(Servlet):
                         "Content-Type": "text/html"
                     }
             }
-        route = routes[uri]
         if route:
             params: List[Any] = [None] * route['paramLen']
 
@@ -162,6 +169,16 @@ class HippoContainer(Servlet):
                     value = rparam['defaultValue']
                 params[rparam['param']] = value
 
+            for pathvar in route['pathVariables']:
+                value = pathvars.get(pathvar['name'])
+                if value is not None and type(value) is not pathvar['type']:
+                    # TODO: other primitive types (?)
+                    if pathvar['type'] is int:
+                        value = int(value)
+                if value is None and pathvar['defaultValue'] is not None:
+                    value = pathvar['defaultValue']
+                params[pathvar['param']] = value
+
             try:
                 resp = route['method'](route['component'], *params)
                 return self.transform_response(resp)
@@ -190,3 +207,20 @@ class HippoContainer(Servlet):
                     "headers": headers,
                     }
         return cast(Dict, resp)
+
+    # TODO: this is rather primitive temporary solution
+    def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:
+        for key in routes:
+            value = routes[key]
+            if '{' not in key:
+                continue
+            pattern = re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", key)
+            pattern = f"^{pattern}$"
+            route_regex = re.compile(pattern)
+
+            match = route_regex.match(uri)
+            if match:
+                path_vars = match.groupdict()
+                print(path_vars)
+                return value, path_vars
+        return None, {}

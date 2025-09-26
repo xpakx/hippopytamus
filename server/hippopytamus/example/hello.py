@@ -33,3 +33,7 @@ class HelloController:
     def echo_body(self, body: RequestBody(dict)) -> str:
         msg = body.get("message", "(no message)")
         return f"<h1>You said: {msg}</h1>"
+
+    @PostMapping("/echostr")
+    def echo_str(self, msg: RequestBody(str)) -> str:
+        return f"<h1>You said: {msg}</h1>"
