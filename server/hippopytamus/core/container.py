@@ -140,7 +140,10 @@ class HippoContainer(Servlet):
             bodyParamType = route.get('bodyParamType')
             if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
                 if bodyParamType in [dict, Dict]:
-                    requestBody = json.loads(requestBody)
+                    try:
+                        requestBody = json.loads(requestBody)
+                    except Exception:
+                        print("Malformed json")
             if route['bodyParam'] is not None:
                 params[route['bodyParam']] = requestBody
 
@@ -158,8 +161,14 @@ class HippoContainer(Servlet):
                 if value is None and rparam['defaultValue'] is not None:
                     value = rparam['defaultValue']
                 params[rparam['param']] = value
-            resp = route['method'](route['component'], *params)
-            return self.transform_response(resp)
+
+            try:
+                resp = route['method'](route['component'], *params)
+                return self.transform_response(resp)
+            except Exception:
+                print("Error in handler")
+                return {'code': 500, 'body': None}
+
         return {}
 
     def transform_response(self, resp: Response) -> Dict[str, Any]:

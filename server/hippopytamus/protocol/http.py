@@ -30,7 +30,7 @@ class HttpProtocol09(Protocol):
 
 
 class HttpProtocol10(Protocol):
-    codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found"}
+    codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found", 500: b"Internal Server Error"}
 
     def prepare_response(self, resp: Response) -> bytes:
         if not isinstance(resp, dict):
