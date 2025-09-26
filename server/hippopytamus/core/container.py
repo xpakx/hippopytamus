@@ -1,5 +1,5 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
-from typing import List, Tuple
+from typing import List, Tuple, get_origin
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from urllib.parse import urlparse, parse_qs
@@ -146,7 +146,7 @@ class HippoContainer(Servlet):
             requestBody = request.get('body')
             bodyParamType = route.get('bodyParamType')
             if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
-                if bodyParamType in [dict, Dict]:
+                if bodyParamType in [dict, Dict] or get_origin(bodyParamType) is dict:
                     try:
                         requestBody = json.loads(requestBody)
                     except Exception:
