@@ -8,16 +8,14 @@ import re
 
 
 class HippoContainer(Servlet):
-    components: List[Any] = []
+    components: Dict[str, Any] = {}
     getRoutes: Dict[str, Any] = {}
     postRoutes: Dict[str, Any] = {}
     putRoutes: Dict[str, Any] = {}
     deleteRoutes: Dict[str, Any] = {}
 
     def register(self, cls: Type) -> None:
-        # TODO dependency injection
-        # TODO shouldn't be created right now
-        component = cls()
+        component_name = cls.__name__
         metadata = get_class_data(cls)
         class_decorators = get_class_argdecorators(cls)
         url_prepend = None
@@ -33,7 +31,7 @@ class HippoContainer(Servlet):
             signature = method.get('signature', [])
             params_len = len(signature)
             method_data = {
-                    "component": component,
+                    "component": component_name,
                     "methodName": method_name,
                     "method": method['method_handle'],
                     "bodyParam": None,
@@ -49,7 +47,10 @@ class HippoContainer(Servlet):
                 if annotation['__decorator__'] == "RequestMapping":
                     self.register_route(annotation, method_data, url_prepend)
 
-        self.components.append(component)
+        # TODO dependency injection
+        # TODO shouldn't be created right now
+        component = cls()
+        self.components[component_name] = component
 
     def register_route(self, annotation, method_data, url_prepend):
         mapping_meth = annotation.get('method', 'GET')
@@ -185,13 +186,18 @@ class HippoContainer(Servlet):
                 params[pathvar['param']] = value
 
             try:
-                resp = route['method'](route['component'], *params)
+                component_name = route.get('component')
+                component = self.getComponent(component_name)
+                resp = route['method'](component, *params)
                 return self.transform_response(resp)
             except Exception:
                 print("Error in handler")
                 return {'code': 500, 'body': None}
 
         return {}
+
+    def getComponent(self, name: str) -> Any:
+        return self.components.get(name)
 
     def transform_response(self, resp: Response) -> Dict[str, Any]:
         # TODO add ResponseBody, and transform pydantic/pydantic-like types
