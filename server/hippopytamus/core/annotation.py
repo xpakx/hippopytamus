@@ -164,3 +164,11 @@ def PathVariable(cls: T, name: Optional[str] = None, required: bool = False) -> 
             "required": required
     }
     return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+def RequestHeader(cls: T, required: bool = False) -> HippoArgDecorator:
+    metadata = {
+            "__decorator__": "RequestHeader",
+            "required": required
+    }
+    return Annotated[cls, AnnotationMetadata(metadata)]
