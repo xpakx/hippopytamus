@@ -47,20 +47,23 @@ class HippoContainer(Servlet):
 
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
-                    mapping_meth = annotation.get('method', 'GET')
-                    for meth in mapping_meth:
-                        routes = self.getRoutes
-                        if meth == 'POST':
-                            routes = self.postRoutes
-                        if meth == 'PUT':
-                            routes = self.putRoutes
-                        if meth == 'DELETE':
-                            routes = self.deleteRoutes
-                        for path in annotation['path']:
-                            p = f"{url_prepend}{path}" if url_prepend else path
-                            routes[p] = method_data
+                    self.register_route(annotation, method_data, url_prepend)
 
         self.components.append(component)
+
+    def register_route(self, annotation, method_data, url_prepend):
+        mapping_meth = annotation.get('method', 'GET')
+        for meth in mapping_meth:
+            routes = self.getRoutes
+            if meth == 'POST':
+                routes = self.postRoutes
+            if meth == 'PUT':
+                routes = self.putRoutes
+            if meth == 'DELETE':
+                routes = self.deleteRoutes
+            for path in annotation['path']:
+                p = f"{url_prepend}{path}" if url_prepend else path
+                routes[p] = method_data
 
     def process_method(self, signature, method_data) -> Dict:
         method_name = method_data['methodName']
