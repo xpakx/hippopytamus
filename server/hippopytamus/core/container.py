@@ -30,12 +30,20 @@ class HippoContainer(Servlet):
         for method in metadata:
             method_name = method.get('name', 'unknown')
             print(len(method.get('signature', [])), 'params in', method_name)
-
             signature = method.get('signature', [])
             params_len = len(signature)
-            rparams = []
-            pathvars = []
-            request_param_num, request_param_type = self.process_method(signature, method_name, pathvars, rparams)
+            method_data = {
+                    "component": component,
+                    "methodName": method_name,
+                    "method": method['method_handle'],
+                    "bodyParam": None,
+                    "bodyParamType": None,
+                    "paramLen": params_len,
+                    "pathVariables": [],
+                    "requestParams": [],
+            }
+
+            self.process_method(signature, method_data)
 
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
@@ -50,21 +58,12 @@ class HippoContainer(Servlet):
                             routes = self.deleteRoutes
                         for path in annotation['path']:
                             p = f"{url_prepend}{path}" if url_prepend else path
-                            routes[p] = {
-                                    "component": component,
-                                    "method": method['method_handle'],
-                                    "bodyParam": request_param_num,
-                                    "bodyParamType": request_param_type,
-                                    "paramLen": params_len,
-                                    "requestParams": rparams,
-                                    "pathVariables": pathvars,
-                            }
+                            routes[p] = method_data
 
         self.components.append(component)
 
-    def process_method(self, signature, method_name, pathvars, rparams) -> Tuple[int, type]:
-        request_param_num = None
-        request_param_type = None
+    def process_method(self, signature, method_data) -> Dict:
+        method_name = method_data['methodName']
 
         for param_num, param in enumerate(signature):
             if not param:
@@ -76,14 +75,14 @@ class HippoContainer(Servlet):
             for dec in param.get('annotations', []):
                 if dec.get('__decorator__') == "RequestBody":
                     print("Found @RequestBody for", method_name, "at", param_num)
-                    request_param_num = param_num
-                    request_param_type = param.get('class')
+                    method_data['bodyParam'] = param_num
+                    method_data['bodyType'] = param.get('class')
                 elif dec.get('__decorator__') == "PathVariable":
                     print("Found @PathVariable for", method_name, "at", param_num)
                     path_name = dec.get('name')
                     if not path_name:
                         path_name = param.get('name')
-                    pathvars.append({
+                    method_data['pathVariables'].append({
                             "name": path_name,
                             "param": param_num,
                             "defaultValue": dec.get('defaultValue'),
@@ -97,7 +96,7 @@ class HippoContainer(Servlet):
                     rparam_name = dec.get('name')
                     if not rparam_name:
                         rparam_name = param.get('name')
-                    rparams.append({
+                    method_data['requestParams'].append({
                             "name": rparam_name,
                             "param": param_num,
                             "defaultValue": dec.get('defaultValue'),
@@ -106,7 +105,6 @@ class HippoContainer(Servlet):
                     })
                 else:
                     print("Param", param_num, "in", method_name, "is not annotated")
-        return request_param_num, request_param_type
 
     def process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
