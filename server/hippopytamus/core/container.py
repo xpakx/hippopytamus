@@ -31,53 +31,11 @@ class HippoContainer(Servlet):
             method_name = method.get('name', 'unknown')
             print(len(method.get('signature', [])), 'params in', method_name)
 
-            param_num = 0
-            request_param_num = None
-            request_param_type = None
             signature = method.get('signature', [])
             params_len = len(signature)
             rparams = []
             pathvars = []
-            for param_num, param in enumerate(signature):
-                if not param:
-                    # TODO: these are not type annotated
-                    # might be nice to add "Unknown" or "Any"
-                    # in get_class_data and guess their
-                    # type and function depending on the context
-                    continue
-                for dec in param.get('annotations', []):
-                    if dec.get('__decorator__') == "RequestBody":
-                        print("Found @RequestBody for", method_name, "at", param_num)
-                        request_param_num = param_num
-                        request_param_type = param.get('class')
-                    elif dec.get('__decorator__') == "PathVariable":
-                        print("Found @PathVariable for", method_name, "at", param_num)
-                        path_name = dec.get('name')
-                        if not path_name:
-                            path_name = param.get('name')
-                        pathvars.append({
-                                "name": path_name,
-                                "param": param_num,
-                                "defaultValue": dec.get('defaultValue'),
-                                "required": dec.get('required'),
-                                "type": param.get('class')
-                        })
-                    elif dec.get('__decorator__') == "RequestHeader":
-                        print("Found @RequestHeader for", method_name, "at", param_num)
-                    elif dec.get('__decorator__') == "RequestParam":
-                        print("Found @RequestParam for", method_name, "at", param_num)
-                        rparam_name = dec.get('name')
-                        if not rparam_name:
-                            rparam_name = param.get('name')
-                        rparams.append({
-                                "name": rparam_name,
-                                "param": param_num,
-                                "defaultValue": dec.get('defaultValue'),
-                                "required": dec.get('required'),
-                                "type": param.get('class')
-                        })
-                    else:
-                        print("Param", param_num, "in", method_name, "is not annotated")
+            request_param_num, request_param_type = self.process_method(signature, method_name, pathvars, rparams)
 
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
@@ -103,6 +61,52 @@ class HippoContainer(Servlet):
                             }
 
         self.components.append(component)
+
+    def process_method(self, signature, method_name, pathvars, rparams) -> Tuple[int, type]:
+        request_param_num = None
+        request_param_type = None
+
+        for param_num, param in enumerate(signature):
+            if not param:
+                # TODO: these are not type annotated
+                # might be nice to add "Unknown" or "Any"
+                # in get_class_data and guess their
+                # type and function depending on the context
+                continue
+            for dec in param.get('annotations', []):
+                if dec.get('__decorator__') == "RequestBody":
+                    print("Found @RequestBody for", method_name, "at", param_num)
+                    request_param_num = param_num
+                    request_param_type = param.get('class')
+                elif dec.get('__decorator__') == "PathVariable":
+                    print("Found @PathVariable for", method_name, "at", param_num)
+                    path_name = dec.get('name')
+                    if not path_name:
+                        path_name = param.get('name')
+                    pathvars.append({
+                            "name": path_name,
+                            "param": param_num,
+                            "defaultValue": dec.get('defaultValue'),
+                            "required": dec.get('required'),
+                            "type": param.get('class')
+                    })
+                elif dec.get('__decorator__') == "RequestHeader":
+                    print("Found @RequestHeader for", method_name, "at", param_num)
+                elif dec.get('__decorator__') == "RequestParam":
+                    print("Found @RequestParam for", method_name, "at", param_num)
+                    rparam_name = dec.get('name')
+                    if not rparam_name:
+                        rparam_name = param.get('name')
+                    rparams.append({
+                            "name": rparam_name,
+                            "param": param_num,
+                            "defaultValue": dec.get('defaultValue'),
+                            "required": dec.get('required'),
+                            "type": param.get('class')
+                    })
+                else:
+                    print("Param", param_num, "in", method_name, "is not annotated")
+        return request_param_num, request_param_type
 
     def process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
