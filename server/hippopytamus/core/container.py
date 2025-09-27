@@ -24,12 +24,14 @@ class HippoContainer(Servlet):
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
+        class_dependencies = []
 
         for method in metadata:
             method_name = method.get('name', 'unknown')
             print(len(method.get('signature', [])), 'params in', method_name)
             signature = method.get('signature', [])
             params_len = len(signature)
+
             method_data = {
                     "component": component_name,
                     "methodName": method_name,
@@ -41,16 +43,27 @@ class HippoContainer(Servlet):
                     "requestParams": [],
             }
 
-            self.process_method(signature, method_data)
+            if method_name == "__init__":
+                for param in signature:
+                    if not param:
+                        continue  # TODO
+                    param = param.get('class')
+                    dep_name = param.__name__
+                    class_dependencies.append(dep_name)
+            else:
+                self.process_method(signature, method_data)
 
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     self.register_route(annotation, method_data, url_prepend)
 
-        # TODO dependency injection
-        # TODO shouldn't be created right now
-        component = cls()
-        self.components[component_name] = component
+        print(class_dependencies)
+        # TODO: maybe create components with routes earlier
+        self.components[component_name] = {
+                "component": None,
+                "class": cls,
+                "dependencies": class_dependencies,
+        }
 
     def register_route(self, annotation, method_data, url_prepend):
         mapping_meth = annotation.get('method', 'GET')
@@ -80,7 +93,7 @@ class HippoContainer(Servlet):
                 if dec.get('__decorator__') == "RequestBody":
                     print("Found @RequestBody for", method_name, "at", param_num)
                     method_data['bodyParam'] = param_num
-                    method_data['bodyType'] = param.get('class')
+                    method_data['bodyParamType'] = param.get('class')
                 elif dec.get('__decorator__') == "PathVariable":
                     print("Found @PathVariable for", method_name, "at", param_num)
                     path_name = dec.get('name')
@@ -197,7 +210,18 @@ class HippoContainer(Servlet):
         return {}
 
     def getComponent(self, name: str) -> Any:
-        return self.components.get(name)
+        component = self.components.get(name)
+        if not component:
+            return None
+        if not component['component']:
+            deps = component['dependencies']
+            params: List[Any] = [None] * len(deps)
+            # TODO: detect cycles
+            for param_num, param in enumerate(deps):
+                params[param_num] = self.getComponent(param)
+            component['component'] = component['class'](*params)
+
+        return component['component']
 
     def transform_response(self, resp: Response) -> Dict[str, Any]:
         # TODO add ResponseBody, and transform pydantic/pydantic-like types

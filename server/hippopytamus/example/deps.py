@@ -24,7 +24,6 @@ class GreetingService:
 @Controller
 @RequestMapping("/api")
 class UserController:
-    # TODO: inject dependency
     def __init__(self, service: GreetingService):
         self.service = service
 
