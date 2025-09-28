@@ -1,5 +1,5 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
-from typing import List, Tuple, get_origin
+from typing import List, Tuple, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from urllib.parse import urlparse, parse_qs
@@ -65,7 +65,12 @@ class HippoContainer(Servlet):
                 "dependencies": class_dependencies,
         }
 
-    def register_route(self, annotation, method_data, url_prepend):
+    def register_route(
+            self,
+            annotation: Dict,
+            method_data: Dict,
+            url_prepend: Optional[str]
+    ) -> None:
         mapping_meth = annotation.get('method', 'GET')
         for meth in mapping_meth:
             routes = self.getRoutes
@@ -79,7 +84,7 @@ class HippoContainer(Servlet):
                 p = f"{url_prepend}{path}" if url_prepend else path
                 routes[p] = method_data
 
-    def process_method(self, signature, method_data) -> Dict:
+    def process_method(self, signature: List, method_data: Dict) -> None:
         method_name = method_data['methodName']
 
         for param_num, param in enumerate(signature):
@@ -144,7 +149,7 @@ class HippoContainer(Servlet):
             routes = self.deleteRoutes
 
         route = routes.get(uri)
-        pathvars = {}
+        pathvars: Dict[str, Any] = {}
         print(route)
         if not route:
             route, pathvars = self.try_find_varroute(routes, uri)
@@ -175,7 +180,7 @@ class HippoContainer(Servlet):
 
             for rparam in route['requestParams']:
                 valueList = query_params.get(rparam['name'])
-                value = None
+                value: Optional[Union[int, str]] = None
                 if isinstance(valueList, list):
                     value = valueList[0] if len(valueList) > 0 else None
                 else:
@@ -199,7 +204,7 @@ class HippoContainer(Servlet):
                 params[pathvar['param']] = value
 
             try:
-                component_name = route.get('component')
+                component_name = cast(str, route.get('component'))
                 component = self.getComponent(component_name)
                 resp = route['method'](component, *params)
                 return self.transform_response(resp)
