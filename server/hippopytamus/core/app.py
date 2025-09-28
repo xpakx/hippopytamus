@@ -8,16 +8,30 @@ from typing import List, Any
 from types import ModuleType
 from hippopytamus.core.container import HippoContainer
 from hippopytamus.core.extractor import get_class_decorators
+from dataclasses import dataclass
+
+
+# TODO: this should be loaded form file/context
+@dataclass
+class ServerOptions:
+    host: str = "127.0.0.1"
+    port: int = 8000
 
 
 class HippoApp:
-    def __init__(self, module_name: str) -> None:
+    def __init__(
+            self,
+            module_name: str,
+            opt: ServerOptions = ServerOptions()
+            ) -> None:
         classes = self.get_module_classes(module_name)
         print(classes)
         self.container = HippoContainer()
         for cls in classes:
             self.container.register(cls)
-        self.server = SelectTCPServer(HttpProtocol10(), self.container)
+        self.server = SelectTCPServer(
+                HttpProtocol10(),
+                self.container, host=opt.host, port=opt.port)
 
     def inspect_module(self, module: ModuleType) -> Any:
         return inspect.getmembers(module, inspect.isclass)
