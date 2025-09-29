@@ -33,6 +33,19 @@ def make_request_bytes(method: str, uri: str, headers=None, body=None) -> bytes:
     return header_bytes + body_bytes + b'\r\n'
 
 
+def parse_http_response(response_bytes: bytes):
+    response_str = response_bytes.decode("utf-8")
+    header_part, _, body = response_str.partition("\r\n\r\n")
+    lines = header_part.split("\r\n")
+    status_line = lines[0]
+    headers = {}
+    for line in lines[1:]:
+        if ": " in line:
+            key, value = line.split(": ", 1)
+            headers[key] = value
+    return status_line, headers, body
+
+
 @pytest.fixture
 def app_server() -> Generator[int, None, None]:
     port = get_free_port()
@@ -45,23 +58,16 @@ def app_server() -> Generator[int, None, None]:
 
 
 def test_hello_endpoint(app_server: int) -> None:
-    print(app_server)
-
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.settimeout(2)
     client.connect(("localhost", app_server))
+    message = make_request_bytes("GET", "/hello")
 
-    message = make_request_bytes(
-        "GET",
-        "/hello"
-    )
-    print(message)
     client.sendall(message)
-
     response_bytes = client.recv(4096)
-    response = response_bytes.decode("utf-8")
-    print(response)
+    status_line, headers, body = parse_http_response(response_bytes)
 
-    assert 'Hello world' in response
+    assert "200" in status_line
+    assert "<h1>Hello world from service!</h1>" in body
 
     client.close()
