@@ -124,3 +124,37 @@ def test_concat_numbers(app_server: int, a, b, expected):
 
     assert "200" in status
     assert f"Sum = {expected}" in body
+
+
+def test_echo_body(app_server: int):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.settimeout(2)
+    time.sleep(0.5)  # TODO
+    client.connect(("localhost", app_server))
+    msg = 'hello world'
+    body = {'message': msg}
+
+    client.sendall(make_request_bytes("POST", "/h2/echo", body=body))
+    status, headers, body_resp = parse_http_response(client.recv(8192))
+    client.close()
+
+    assert "200" in status
+    assert f"You said: {msg}" in body_resp
+
+
+@pytest.mark.parametrize(
+    "msg",
+    ["hello", "testing 123", ""]
+)
+def test_echo_str(app_server: int, msg):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.settimeout(2)
+    time.sleep(0.5)  # TODO
+    client.connect(("localhost", app_server))
+
+    client.sendall(make_request_bytes("POST", "/h2/echostr", body=msg))
+    status, headers, body_resp = parse_http_response(client.recv(8192))
+    client.close()
+
+    assert "200" in status
+    assert f"You said: {msg}" in body_resp
