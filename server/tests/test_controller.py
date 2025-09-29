@@ -61,13 +61,51 @@ def test_hello_endpoint(app_server: int) -> None:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.settimeout(2)
     client.connect(("localhost", app_server))
-    message = make_request_bytes("GET", "/hello")
 
+    message = make_request_bytes("GET", "/hello")
     client.sendall(message)
     response_bytes = client.recv(4096)
     status_line, headers, body = parse_http_response(response_bytes)
+    client.close()
 
     assert "200" in status_line
     assert "<h1>Hello world from service!</h1>" in body
 
+
+def test_hello_query_param(app_server: int):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.settimeout(2)
+    client.connect(("localhost", app_server))
+
+    client.sendall(make_request_bytes("GET", "/hello?name=Alice"))
+    status, headers, body = parse_http_response(client.recv(8192))
     client.close()
+
+    assert "200" in status
+    assert "<h1>Hello Alice from service!</h1>" in body
+
+
+def test_home_index(app_server: int):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.settimeout(2)
+    client.connect(("localhost", app_server))
+
+    client.sendall(make_request_bytes("GET", "/"))
+    status, headers, body = parse_http_response(client.recv(8192))
+    client.close()
+
+    assert "200" in status
+    assert b"<title>Hippopytamus</title>" in body.encode("utf-8")
+
+
+def test_404_path(app_server: int):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.settimeout(2)
+    client.connect(("localhost", app_server))
+
+    client.sendall(make_request_bytes("GET", "/unknown"))
+    status, headers, body = parse_http_response(client.recv(4096))
+    client.close()
+
+    assert "404" in status
+    assert "Not found" in body
