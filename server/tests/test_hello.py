@@ -21,17 +21,21 @@ def make_request_bytes(method: str, uri: str, headers=None, body=None) -> bytes:
 
     body_bytes = b""
     if body is not None:
-        body_str = json.dumps(body)
-        body_bytes = body_str.encode("utf-8") + b'\r\n'
+        if type(body) is dict:
+            body_bytes = json.dumps(body).encode("utf-8")
+        else:
+            body_bytes = body.encode("utf-8")
         headers["Content-Length"] = str(len(body_bytes))
+        body_bytes = body_bytes + b'\r\n\r\n'
 
     for key, value in headers.items():
         lines.append(f"{key}: {value}")
 
     lines.append("")
     header_bytes = "\r\n".join(lines).encode("utf-8")
+    header_bytes = header_bytes + b"\r\n"
 
-    return header_bytes + body_bytes + b'\r\n'
+    return header_bytes + body_bytes
 
 
 def parse_http_response(response_bytes: bytes):
