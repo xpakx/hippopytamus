@@ -22,18 +22,21 @@ class TestClient:
     def close(self) -> None:
         self.client.close()
 
-    def send(self, method: str, uri: str):
-        self.client.sendall(make_request_bytes(method, uri))
-        status, headers, body = parse_http_response(self.client.recv(8192))
+    def send(self, method: str, uri: str, body=None):
+        self.client.sendall(make_request_bytes(method, uri, body=body))
+        status, headers, resp_body = parse_http_response(self.client.recv(8192))
         return HttpResponse(
                 method=method,
                 status=status,
                 headers=headers,
-                body=body,
+                body=resp_body,
         )
 
     def get(self, uri: str):
         return self.send("GET", uri)
+
+    def post(self, uri: str, body=None):
+        return self.send("POST", uri, body=body)
 
 
 def get_free_port() -> int:
@@ -50,12 +53,13 @@ def make_request_bytes(method: str, uri: str, headers=None, body=None) -> bytes:
 
     body_bytes = b""
     if body is not None:
+        print(type(body), body)
         if type(body) is dict:
             body_bytes = json.dumps(body).encode("utf-8")
         else:
             body_bytes = body.encode("utf-8")
         headers["Content-Length"] = str(len(body_bytes))
-        body_bytes = body_bytes + b'\r\n\r\n'
+        body_bytes = body_bytes
 
     for key, value in headers.items():
         lines.append(f"{key}: {value}")
