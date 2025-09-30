@@ -126,7 +126,7 @@ class SelectTCPServer:
     def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
-        print(f"new client: {address}")
+        # print(f"new client: {address}")
         self.connections.append(connection)
         self.state.append({
             "address": address,
@@ -207,7 +207,7 @@ class PollTCPServer:
     def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
-        print(f"new client: {address}")
+        # print(f"new client: {address}")
         if not self.poller:
             return
         self.poller.register(connection, select.POLLIN)
