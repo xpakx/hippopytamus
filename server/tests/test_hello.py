@@ -9,7 +9,7 @@ from .utils import TestClient
 @pytest.fixture
 def app_server() -> Generator[int, None, None]:
     port = get_free_port()
-    app = HippoApp("hippopytamus.example", ServerOptions(port=port, host="localhost"))
+    app = HippoApp("hippopytamus.example.example1", ServerOptions(port=port, host="localhost"))
 
     server_thread = threading.Thread(target=app.run, daemon=True)
     server_thread.start()

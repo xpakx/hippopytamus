@@ -7,7 +7,7 @@ from .utils import TestClient, get_free_port
 @pytest.fixture
 def app_server() -> int:
     port = get_free_port()
-    app = HippoApp("hippopytamus.example", ServerOptions(port=port, host="localhost"))
+    app = HippoApp("hippopytamus.example.example1", ServerOptions(port=port, host="localhost"))
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
     return port
@@ -62,7 +62,7 @@ def test_hello_with_headers(client: TestClient):
 
 
 def test_dependency_injection_autowiring():
-    app = HippoApp("hippopytamus.example", ServerOptions(port=0))
+    app = HippoApp("hippopytamus.example.example1", ServerOptions(port=0))
     controller = app.container.getComponent("UserController")
 
     assert controller is not None
