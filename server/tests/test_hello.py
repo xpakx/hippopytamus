@@ -1,10 +1,8 @@
-import socket
 import threading
 import pytest
 from hippopytamus.core.app import HippoApp, ServerOptions
 from typing import Generator
-import time
-from .utils import get_free_port, make_request_bytes, parse_http_response
+from .utils import get_free_port
 from .utils import TestClient
 
 
