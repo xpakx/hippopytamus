@@ -59,3 +59,25 @@ def test_hello_with_headers(client: TestClient):
     assert "200" in resp.status
     assert "User#10" in resp.body
     assert "header-123" in resp.body
+
+
+def test_dependency_injection_autowiring():
+    app = HippoApp("hippopytamus.example", ServerOptions(port=0))
+    controller = app.container.getComponent("UserController")
+
+    assert controller is not None
+    assert hasattr(controller, "service")
+    assert controller.service is not None
+    assert hasattr(controller.service, "config")
+    assert controller.service.config is not None
+
+
+@pytest.mark.skip(reason="@Value annotation not implemented yet")
+def test_dependency_injection_value():
+    app = HippoApp("hippopytamus.example", ServerOptions(port=0))
+    controller = app.container.getComponent("UserController")
+
+    assert controller is not None
+    assert controller.service is not None
+    assert controller.service.config is not None
+    assert controller.service.config.prefix == "Hello"
