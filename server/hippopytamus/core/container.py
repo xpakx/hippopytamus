@@ -41,6 +41,7 @@ class HippoContainer(Servlet):
                     "paramLen": params_len,
                     "pathVariables": [],
                     "requestParams": [],
+                    "headers": [],
             }
 
             if method_name == "__init__":
@@ -50,7 +51,11 @@ class HippoContainer(Servlet):
                     param_name = param.get('class')
                     if not param_name:
                         continue  # TODO: guess type
-                    dep_name = param_name.__name__
+                    dep_name = ""
+                    if type(param_name) is str:
+                        dep_name = param_name
+                    else:
+                        dep_name = param_name.__name__
                     value = False
                     for annot in param.get('annotations'):
                         if annot['__decorator__'] == 'Value':
@@ -125,6 +130,15 @@ class HippoContainer(Servlet):
                     })
                 elif dec.get('__decorator__') == "RequestHeader":
                     print("Found @RequestHeader for", method_name, "at", param_num)
+                    header_name = dec.get('name')
+                    if not header_name:
+                        header_name = param.get('name')
+                    method_data['headers'].append({
+                            "name": header_name,
+                            "param": param_num,
+                            "required": dec.get('required'),
+                            "type": param.get('class')
+                    })
                 elif dec.get('__decorator__') == "RequestParam":
                     print("Found @RequestParam for", method_name, "at", param_num)
                     rparam_name = dec.get('name')
@@ -215,13 +229,26 @@ class HippoContainer(Servlet):
                     value = pathvar['defaultValue']
                 params[pathvar['param']] = value
 
+            for headervar in route['headers']:
+                value = None
+                for header in request['headers']:
+                    if header == headervar['name']:
+                        value = request['headers'][header]
+                        break
+                if value is not None and type(value) is not headervar['type']:
+                    # TODO: other primitive types (?)
+                    if pathvar['type'] is int:
+                        value = int(value)
+                params[pathvar['param']] = value
+
             try:
                 component_name = cast(str, route.get('component'))
                 component = self.getComponent(component_name)
                 resp = route['method'](component, *params)
                 return self.transform_response(resp)
-            except Exception:
-                print("Error in handler")
+            except Exception as e:
+                print("Error in handler: ", repr(e))
+                # TODO: exception handlers
                 return {'code': 500, 'body': None}
 
         return {}
@@ -261,7 +288,12 @@ class HippoContainer(Servlet):
                     "body": resp,
                     "headers": headers,
                     }
-        return cast(Dict, resp)
+        if (type(resp) is dict) and 'code' not in resp:
+            return {
+                    "code": 200,
+                    "body": bytes(json.dumps(resp), "utf-8"),
+                    "headers": headers,
+                    }
 
     # TODO: this is rather primitive temporary solution
     def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:

@@ -7,7 +7,7 @@ from hippopytamus.core.annotation import (
 
 @Component
 class Config:
-    def __init__(self, prefix: Value(str, '"World"')):
+    def __init__(self, prefix: Value(str, '"Hello"')):
         self.prefix = prefix
 
 
@@ -30,7 +30,6 @@ class UserController:
     def test(self) -> str:
         return "<h1>Dependency test</h1>"
 
-    # TODO: headers
     @GetMapping("/hello/{user_id}")
     def say_hello(
         self,

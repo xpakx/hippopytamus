@@ -166,12 +166,22 @@ def PathVariable(cls: T, name: Optional[str] = None, required: bool = False) -> 
     return Annotated[cls, AnnotationMetadata(metadata)]
 
 
-def RequestHeader(cls: T, required: bool = False) -> HippoArgDecorator:
+def RequestHeader(cls: T, name: Optional[str] = None, required: bool = False) -> HippoArgDecorator:
     metadata = {
             "__decorator__": "RequestHeader",
+            "name": name,
             "required": required
     }
     return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+def Configuration(cls: Type) -> HippoDecoratorClass:
+    if not hasattr(cls, "__hippo_decorators"):
+        cls.__hippo_decorators = []
+    if not hasattr(cls, "__hippo_argdecorators"):
+        cls.__hippo_argdecorators = []
+    cls.__hippo_decorators.append("Configuration")
+    return cast(HippoDecoratorClass, cls)
 
 
 def Value(cls: T, value: str) -> HippoArgDecorator:
@@ -180,3 +190,6 @@ def Value(cls: T, value: str) -> HippoArgDecorator:
             "value": value
     }
     return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+# PropertySource
