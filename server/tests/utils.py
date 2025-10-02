@@ -22,8 +22,8 @@ class TestClient:
     def close(self) -> None:
         self.client.close()
 
-    def send(self, method: str, uri: str, body=None):
-        self.client.sendall(make_request_bytes(method, uri, body=body))
+    def send(self, method: str, uri: str, body=None, headers=None):
+        self.client.sendall(make_request_bytes(method, uri, body=body, headers=headers))
         status, headers, resp_body = parse_http_response(self.client.recv(8192))
         return HttpResponse(
                 method=method,
@@ -32,11 +32,11 @@ class TestClient:
                 body=resp_body,
         )
 
-    def get(self, uri: str):
-        return self.send("GET", uri)
+    def get(self, uri: str, headers=None):
+        return self.send("GET", uri, headers=headers)
 
-    def post(self, uri: str, body=None):
-        return self.send("POST", uri, body=body)
+    def post(self, uri: str, body=None, headers=None):
+        return self.send("POST", uri, body=body, headers=headers)
 
 
 def get_free_port() -> int:
