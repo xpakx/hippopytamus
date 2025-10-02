@@ -46,8 +46,10 @@ class HippoContainer(Servlet):
             if method_name == "__init__":
                 for param in signature:
                     if not param:
-                        continue  # TODO
+                        continue
                     param = param.get('class')
+                    if not param:
+                        continue  # TODO: guess type
                     dep_name = param.__name__
                     class_dependencies.append(dep_name)
             else:

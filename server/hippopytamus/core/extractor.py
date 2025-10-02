@@ -25,7 +25,8 @@ def get_class_argdecorators(cls: Type) -> List[Dict[str, Any]]:
 def extract_underlying_type(name: str, param: Parameter) -> Optional[Dict[str, Any]]:
     cls = param.annotation
     if cls is inspect._empty:
-        return None
+        return {"name": name, "class": None, "annotations": []}
+    # TODO: cls is string and needs evaluation
 
     annotations = []
     while get_origin(cls) is Annotated:
