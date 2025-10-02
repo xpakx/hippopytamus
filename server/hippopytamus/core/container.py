@@ -51,9 +51,15 @@ class HippoContainer(Servlet):
                     if not param_name:
                         continue  # TODO: guess type
                     dep_name = param_name.__name__
+                    value = False
+                    for annot in param.get('annotations'):
+                        if annot['__decorator__'] == 'Value':
+                            value = True
+                            dep_name = annot['value']
+                            break
                     class_dependencies.append({
                             "name": dep_name,
-                            "type": "Component",
+                            "type": "Component" if not value else "Value",
                             "param": param_num,
                     })
             else:

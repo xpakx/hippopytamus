@@ -7,7 +7,6 @@ from hippopytamus.core.annotation import (
 
 @Component
 class Config:
-    # TODO: @Value annotation
     def __init__(self, prefix: Value(str, '"World"')):
         self.prefix = prefix
 
