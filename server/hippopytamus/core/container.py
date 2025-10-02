@@ -231,15 +231,16 @@ class HippoContainer(Servlet):
 
             for headervar in route['headers']:
                 value = None
+                # TODO: do that more elegant
                 for header in request['headers']:
                     if header == headervar['name']:
                         value = request['headers'][header]
                         break
                 if value is not None and type(value) is not headervar['type']:
                     # TODO: other primitive types (?)
-                    if pathvar['type'] is int:
+                    if headervar['type'] is int:
                         value = int(value)
-                params[pathvar['param']] = value
+                params[headervar['param']] = value
 
             try:
                 component_name = cast(str, route.get('component'))
@@ -294,6 +295,7 @@ class HippoContainer(Servlet):
                     "body": bytes(json.dumps(resp), "utf-8"),
                     "headers": headers,
                     }
+        return cast(Dict, resp)
 
     # TODO: this is rather primitive temporary solution
     def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:

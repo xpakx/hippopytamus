@@ -37,7 +37,6 @@ class UserController:
         request_id: RequestHeader(str, "X-Request-ID")
     ) -> dict:
         greeting = self.service.greet(f"User#{user_id}")
-        # TODO: implement auto-JSON serialization in container
         return {
             "greeting": greeting,
             "request_id": request_id
