@@ -1,14 +1,14 @@
 from hippopytamus.core.annotation import (
-    Controller, GetMapping, PostMapping,
-    RequestParam, PathVariable, RequestBody,
+    Controller, GetMapping, PathVariable,
     RequestMapping, RequestHeader, Component,
-    Service
+    Service, Value
 )
 
 
 @Component
 class Config:
-    def __init__(self, prefix: str):
+    # TODO: @Value annotation
+    def __init__(self, prefix: Value(str, '"World"')):
         self.prefix = prefix
 
 

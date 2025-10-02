@@ -172,3 +172,11 @@ def RequestHeader(cls: T, required: bool = False) -> HippoArgDecorator:
             "required": required
     }
     return Annotated[cls, AnnotationMetadata(metadata)]
+
+
+def Value(cls: T, value: str) -> HippoArgDecorator:
+    metadata = {
+            "__decorator__": "Value",
+            "value": value
+    }
+    return Annotated[cls, AnnotationMetadata(metadata)]

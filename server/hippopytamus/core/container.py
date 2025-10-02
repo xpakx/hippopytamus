@@ -44,14 +44,18 @@ class HippoContainer(Servlet):
             }
 
             if method_name == "__init__":
-                for param in signature:
+                for param_num, param in enumerate(signature):
                     if not param:
                         continue
-                    param = param.get('class')
-                    if not param:
+                    param_name = param.get('class')
+                    if not param_name:
                         continue  # TODO: guess type
-                    dep_name = param.__name__
-                    class_dependencies.append(dep_name)
+                    dep_name = param_name.__name__
+                    class_dependencies.append({
+                            "name": dep_name,
+                            "type": "Component",
+                            "param": param_num,
+                    })
             else:
                 self.process_method(signature, method_data)
 
@@ -224,8 +228,11 @@ class HippoContainer(Servlet):
             deps = component['dependencies']
             params: List[Any] = [None] * len(deps)
             # TODO: detect cycles
-            for param_num, param in enumerate(deps):
-                params[param_num] = self.getComponent(param)
+            for param in deps:
+                if (param['type'] == 'Component'):
+                    params[param['param']] = self.getComponent(param['name'])
+                elif param['type'] == 'Value':
+                    params[param['param']] = eval(param['name'])  # TODO
             component['component'] = component['class'](*params)
 
         return component['component']
