@@ -2,7 +2,7 @@ from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List, Tuple, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
-from hippopytamus.core.exception import HippoExceptionHandler, HippoDefaultExceptionHandler
+from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
 import re
@@ -14,8 +14,7 @@ class HippoContainer(Servlet):
     postRoutes: Dict[str, Any] = {}
     putRoutes: Dict[str, Any] = {}
     deleteRoutes: Dict[str, Any] = {}
-    exceptionHandlers: Dict[str, HippoExceptionHandler] = {}
-    defaultExceptionHandler: HippoExceptionHandler = HippoDefaultExceptionHandler()
+    exceptionManager = HippoExceptionManager()
 
     def register(self, cls: Type) -> None:
         component_name = cls.__name__
@@ -254,12 +253,11 @@ class HippoContainer(Servlet):
                 print("Error in handler:", repr(e))
                 ex_type = type(e).__name__
                 print("Exception type:", ex_type)
-                handler = self.get_exception_handler(ex_type)
-                if handler is not None:
-                    print(handler)
-                    return handler.transform(e)
-                print("Using default exception handler")
-                return self.defaultExceptionHandler.transform(e)
+                handler = self.exceptionManager.get_exception_handler(ex_type)
+                if handler is None:
+                    return {"code": 500, "body": None}
+                print(handler)
+                return handler.transform(e)
 
         return {}
 
@@ -305,13 +303,6 @@ class HippoContainer(Servlet):
                     "headers": headers,
                     }
         return cast(Dict, resp)
-
-    def register_exception_handler(self, handler: HippoExceptionHandler) -> None:
-        # TODO: per controller exception handlers
-        self.exceptionHandlers[handler.get_type()] = handler
-
-    def get_exception_handler(self, name: str) -> HippoExceptionHandler:
-        return self.exceptionHandlers.get(name)
 
     # TODO: this is rather primitive temporary solution
     def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:
