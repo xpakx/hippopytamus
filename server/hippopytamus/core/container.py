@@ -77,7 +77,7 @@ class HippoContainer(Servlet):
                 if annotation['__decorator__'] == "RequestMapping":
                     self.register_route(annotation, method_data, url_prepend)
                 elif annotation['__decorator__'] == "ExceptionHandler":
-                    print("Found @ExceptionHandler for", method_name, "at", param_num)
+                    print("Found @ExceptionHandler in", method_name)
                     self.exceptionManager.create_handler(
                             cast(Dict, annotation),
                             method,
@@ -192,6 +192,7 @@ class HippoContainer(Servlet):
             print(route, pathvars)
 
         if not route:
+            # TODO: use exception manager
             return {
                     "code": 404,
                     "body": b"<html><head></head><body><h1>Not found</h1></body></html>",
@@ -258,20 +259,7 @@ class HippoContainer(Servlet):
                 resp = route['method'](component, *params)
                 return self.transform_response(resp)
             except Exception as e:
-                print("Error in handler:", repr(e))
-                ex_type = type(e).__name__
-                print("Exception type:", ex_type)
-                handler = self.exceptionManager.get_exception_handler(ex_type)
-                if handler is None:
-                    return {"code": 500, "body": None}
-                neededComponent = handler.get_component()
-                if neededComponent is not None:
-                    try:
-                        handler.set_component(self.getComponent(neededComponent))
-                    except Exception:
-                        print("Couldn't create component needed for exception handler")
-                print(handler)
-                return handler.transform(e)
+                return self.process_exception(e)
 
         return {}
 
@@ -317,6 +305,22 @@ class HippoContainer(Servlet):
                     "headers": headers,
                     }
         return cast(Dict, resp)
+
+    def process_exception(self, e: Union[Exception, str]) -> Dict:
+        print("Error in handler:", repr(e))
+        ex_type = type(e).__name__ if type(e) is not str else e
+        print("Exception type:", ex_type)
+        handler = self.exceptionManager.get_exception_handler(ex_type)
+        if handler is None:
+            return {"code": 500, "body": None}
+        neededComponent = handler.get_component()
+        if neededComponent is not None:
+            try:
+                handler.set_component(self.getComponent(neededComponent))
+            except Exception:
+                print("Couldn't create component needed for exception handler")
+        print(handler)
+        return handler.transform(e)
 
     # TODO: this is rather primitive temporary solution
     def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:
