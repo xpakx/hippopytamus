@@ -218,4 +218,4 @@ def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
     else:
         func = exc_type
         wrapper = get_exception_wrapper()
-        return wrapper(func)
+        return wrapper(func)  # type: ignore
