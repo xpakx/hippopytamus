@@ -264,6 +264,12 @@ class HippoContainer(Servlet):
                 handler = self.exceptionManager.get_exception_handler(ex_type)
                 if handler is None:
                     return {"code": 500, "body": None}
+                neededComponent = handler.get_component()
+                if neededComponent is not None:
+                    try:
+                        handler.set_component(self.getComponent(neededComponent))
+                    except Exception:
+                        print("Couldn't create component needed for exception handler")
                 print(handler)
                 return handler.transform(e)
 

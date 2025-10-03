@@ -14,6 +14,16 @@ class HippoExceptionHandler(ABC):
         """Prepares the response to be sent back."""
         pass
 
+    @abstractmethod
+    def get_component(self) -> Optional[str]:
+        """Return component name if needed for construction"""
+        pass
+
+    @abstractmethod
+    def set_component(self, component: Any) -> None:
+        """Set constructed component"""
+        pass
+
 
 class HippoDefaultExceptionHandler(HippoExceptionHandler):
     def get_type(self) -> Optional[str]:
@@ -28,6 +38,12 @@ class HippoDefaultExceptionHandler(HippoExceptionHandler):
                     'Content-Type': 'text/html'
                 }
         }
+
+    def get_component(self) -> Optional[str]:
+        return None
+
+    def set_component(self, component: Any) -> None:
+        pass
 
 
 class HippoExceptionManager:
@@ -59,14 +75,21 @@ class HippoExceptionManager:
             return
 
         class MethodHandler(HippoExceptionHandler):
+            def __init__(self):
+                self.component = None
+
             def get_type(self):
                 return type_str
 
             def transform(self, exception: Exception):
-                # TODO: use component correctly
-                return method_handler(None, exception)
+                return method_handler(self.component, exception)
+
+            def get_component(self) -> Optional[str]:
+                return component.__name__
+
+            def set_component(self, comp: Any) -> None:
+                self.component = comp
         self.register_exception_handler(MethodHandler())
 
 
-# TODO: conctruct handlers based on @ExceptionHandler annotations
 # TODO: @ControllerAdvice
