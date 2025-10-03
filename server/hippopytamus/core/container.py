@@ -72,9 +72,17 @@ class HippoContainer(Servlet):
             else:
                 self.process_method(signature, method_data)
 
+            print("DECORATORS:", method['decorators'])
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     self.register_route(annotation, method_data, url_prepend)
+                elif annotation['__decorator__'] == "ExceptionHandler":
+                    print("Found @ExceptionHandler for", method_name, "at", param_num)
+                    self.exceptionManager.create_handler(
+                            cast(Dict, annotation),
+                            method,
+                            cls
+                        )
 
         print(class_dependencies)
         # TODO: maybe create components with routes earlier

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 
 class HippoExceptionHandler(ABC):
@@ -47,6 +47,26 @@ class HippoExceptionManager:
                 name,
                 self.defaultExceptionHandler
         )
+
+    def create_handler(self, annotation: Dict, method: Any, component: Any) -> None:
+        print("Creating handler for", annotation)
+        exception_type = annotation.get('type', None)
+        type_str = exception_type.__name__ if exception_type is not None else None
+
+        print("Method to create handler", method)
+        method_handler = method.get('method_handle')
+        if method_handler is None:
+            return
+
+        class MethodHandler(HippoExceptionHandler):
+            def get_type(self):
+                return type_str
+
+            def transform(self, exception: Exception):
+                # TODO: use component correctly
+                return method_handler(None, exception)
+        self.register_exception_handler(MethodHandler())
+
 
 # TODO: conctruct handlers based on @ExceptionHandler annotations
 # TODO: @ControllerAdvice

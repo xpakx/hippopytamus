@@ -193,3 +193,29 @@ def Value(cls: T, value: str) -> HippoArgDecorator:
 
 
 # PropertySource
+
+def get_exception_wrapper(exc_type: Optional[type[Exception]] = None
+                          ) -> Callable[[Callable], HippoDecoratorFunc]:
+    def decorator(func: Callable) -> HippoDecoratorFunc:
+        if inspect.isclass(func):
+            raise Exception("@ExceptionHandler cannot be applied to class")
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):  # type: ignore
+                return func(*args, **kwargs)
+            hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
+            hippo_wrapper.__hippo_decorator = {
+                    "__decorator__": "ExceptionHandler",
+                    "type": exc_type,
+                }
+            return hippo_wrapper
+    return decorator
+
+
+def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
+    if isinstance(exc_type, type) and issubclass(exc_type, Exception):
+        return get_exception_wrapper(exc_type)
+    else:
+        func = exc_type
+        wrapper = get_exception_wrapper()
+        return wrapper(func)

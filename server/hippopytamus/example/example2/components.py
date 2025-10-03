@@ -1,4 +1,5 @@
 from hippopytamus.core.annotation import Component, Controller, GetMapping
+from hippopytamus.core.annotation import ExceptionHandler
 from typing import Dict
 
 
@@ -20,6 +21,10 @@ class B:
 class MyService:
     def __init__(self, b: B):
         pass
+
+    @ExceptionHandler(RecursionError)
+    def handle_recursion(self, err: RecursionError) -> Dict:
+        return {"code": 500, "body": b'Test error'}
 
     @GetMapping("/hello")
     def process_request(self) -> Dict:
