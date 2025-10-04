@@ -47,28 +47,7 @@ class HippoContainer(Servlet):
             }
 
             if method_name == "__init__":
-                for param_num, param in enumerate(signature):
-                    if not param:
-                        continue
-                    param_name = param.get('class')
-                    if not param_name:
-                        continue  # TODO: guess type
-                    dep_name = ""
-                    if type(param_name) is str:
-                        dep_name = param_name
-                    else:
-                        dep_name = param_name.__name__
-                    value = False
-                    for annot in param.get('annotations'):
-                        if annot['__decorator__'] == 'Value':
-                            value = True
-                            dep_name = annot['value']
-                            break
-                    class_dependencies.append({
-                            "name": dep_name,
-                            "type": "Component" if not value else "Value",
-                            "param": param_num,
-                    })
+                self.process_constructor(signature, class_dependencies)
             else:
                 self.process_method(signature, method_data)
 
@@ -163,6 +142,30 @@ class HippoContainer(Servlet):
                     })
                 else:
                     print("Param", param_num, "in", method_name, "is not annotated")
+
+    def process_constructor(self, signature: List, class_dependencies: Dict) -> None:
+        for param_num, param in enumerate(signature):
+            if not param:
+                continue
+            param_name = param.get('class')
+            if not param_name:
+                continue  # TODO: guess type
+            dep_name = ""
+            if type(param_name) is str:
+                dep_name = param_name
+            else:
+                dep_name = param_name.__name__
+            value = False
+            for annot in param.get('annotations'):
+                if annot['__decorator__'] == 'Value':
+                    value = True
+                    dep_name = annot['value']
+                    break
+            class_dependencies.append({
+                    "name": dep_name,
+                    "type": "Component" if not value else "Value",
+                    "param": param_num,
+            })
 
     def process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
