@@ -26,5 +26,5 @@ def client(app_server: int) -> TestClient:
 def test_hello_triggers_exception_handler(client: TestClient):
     resp = client.get("/hello")
 
-    assert "500" in resp.status
+    assert resp.code == 500
     assert "Test error" in resp.body

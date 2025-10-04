@@ -30,26 +30,26 @@ def client(app_server: int) -> Generator[TestClient, None, None]:
 def test_hello_endpoint(client: TestClient) -> None:
     resp = client.get("/hello")
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert "<h1>Hello world from service!</h1>" in resp.body
 
 
 def test_hello_query_param(client: TestClient):
     resp = client.get("/hello?name=Alice")
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert "<h1>Hello Alice from service!</h1>" in resp.body
 
 
 def test_home_index(client: TestClient):
     resp = client.get("/")
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert "<title>Hippopytamus</title>" in resp.body
 
 
 def test_404_path(client: TestClient):
     resp = client.get("/unknown")
 
-    assert "404" in resp.status
+    assert resp.code == 404
     assert "Not found" in resp.body

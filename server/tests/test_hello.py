@@ -31,7 +31,7 @@ def client(app_server: int) -> Generator[TestClient, None, None]:
 def test_shout(client: TestClient, word: str):
     resp = client.get(f"/h2/shout/{word}")
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"<h1>{word.upper()}!!!</h1>" in resp.body
 
 
@@ -50,7 +50,7 @@ def test_add_numbers(client: TestClient, a, b, expected):
 
     resp = client.get(query)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"Sum = {expected}" in resp.body
 
 
@@ -68,7 +68,7 @@ def test_concat_numbers(client: TestClient, a, b, expected):
 
     resp = client.get(query)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"Sum = {expected}" in resp.body
 
 
@@ -78,7 +78,7 @@ def test_echo_body(client: TestClient):
 
     resp = client.post("/h2/echo", body)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"You said: {msg}" in resp.body
 
 
@@ -89,5 +89,5 @@ def test_echo_body(client: TestClient):
 def test_echo_str(client: TestClient, msg):
     resp = client.post("/h2/echostr", msg)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"You said: {msg}" in resp.body

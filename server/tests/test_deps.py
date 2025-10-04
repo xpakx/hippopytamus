@@ -34,7 +34,7 @@ def test_path_variable(client: TestClient):
     user_id = 7
     resp = client.get(f"/api/hello/{user_id}")
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"User#{user_id}" in resp.body
 
 
@@ -44,7 +44,7 @@ def test_var_route_handling(client: TestClient, user_id: int):
     headers = {"X-Request-ID": request_id}
     resp = client.get(f"/api/hello/{user_id}", headers=headers)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert f"User#{user_id}" in resp.body
     assert request_id in resp.body
 
@@ -54,7 +54,7 @@ def test_hello_with_headers(client: TestClient):
     headers = {"X-Request-ID": "header-123"}
     resp = client.get(f"/api/hello/{user_id}", headers=headers)
 
-    assert "200" in resp.status
+    assert resp.code == 200
     assert "User#10" in resp.body
     assert "header-123" in resp.body
 

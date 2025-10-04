@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class HttpResponse:
     method: str
     status: str
+    code: int
     headers: dict
     body: str
 
@@ -25,11 +26,13 @@ class TestClient:
     def send(self, method: str, uri: str, body=None, headers=None):
         self.client.sendall(make_request_bytes(method, uri, body=body, headers=headers))
         status, headers, resp_body = parse_http_response(self.client.recv(8192))
+        code = int(status.split()[1])  # TODO: errors
         return HttpResponse(
                 method=method,
                 status=status,
                 headers=headers,
                 body=resp_body,
+                code=code,
         )
 
     def get(self, uri: str, headers=None):
