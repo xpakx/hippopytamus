@@ -241,14 +241,23 @@ class HippoContainer(Servlet):
     def set_body_param(self, params: List, request: Dict, route: Dict) -> None:
         requestBody = request.get('body')
         bodyParamType = route.get('bodyParamType')
-        if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
-            if bodyParamType in [dict, Dict] or get_origin(bodyParamType) is dict:
+        if self.needs_conversion(requestBody, bodyParamType):
+            if self.is_dict(bodyParamType):
                 try:
                     requestBody = json.loads(requestBody)
                 except Exception:
                     print("Malformed json")
         if route['bodyParam'] is not None:
             params[route['bodyParam']] = requestBody
+
+    def needs_conversion(self, obj: Any, obj_type: Any) -> bool:
+        obj_exists = obj is not None
+        obj_type_defined = obj_type is not None
+        obj_type_needs_conversion = obj_type_defined and obj_type is not str
+        return obj_exists and obj_type_needs_conversion
+
+    def is_dict(self, paramType: Any) -> bool:
+        return paramType in [dict, Dict] or get_origin(paramType) is dict
 
     def set_request_params(self, params: List, query_params: Dict, route: Dict) -> None:
         for rparam in route['requestParams']:
