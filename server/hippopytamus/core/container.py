@@ -91,8 +91,6 @@ class HippoContainer(Servlet):
                 routes[p] = method_data
 
     def process_method(self, signature: List, method_data: Dict) -> None:
-        method_name = method_data['methodName']
-
         for param_num, param in enumerate(signature):
             if not param:
                 # TODO: these are not type annotated
@@ -101,49 +99,68 @@ class HippoContainer(Servlet):
                 # type and function depending on the context
                 continue
             for dec in param.get('annotations', []):
-                if dec.get('__decorator__') == "RequestBody":
-                    print("Found @RequestBody for", method_name, "at", param_num)
-                    method_data['bodyParam'] = param_num
-                    method_data['bodyParamType'] = param.get('class')
-                elif dec.get('__decorator__') == "PathVariable":
-                    print("Found @PathVariable for", method_name, "at", param_num)
-                    path_name = dec.get('name')
-                    if not path_name:
-                        path_name = param.get('name')
-                    method_data['pathVariables'].append({
-                            "name": path_name,
-                            "param": param_num,
-                            "defaultValue": dec.get('defaultValue'),
-                            "required": dec.get('required'),
-                            "type": param.get('class')
-                    })
-                elif dec.get('__decorator__') == "RequestHeader":
-                    print("Found @RequestHeader for", method_name, "at", param_num)
-                    header_name = dec.get('name')
-                    if not header_name:
-                        header_name = param.get('name')
-                    method_data['headers'].append({
-                            "name": header_name,
-                            "param": param_num,
-                            "required": dec.get('required'),
-                            "type": param.get('class')
-                    })
-                elif dec.get('__decorator__') == "RequestParam":
-                    print("Found @RequestParam for", method_name, "at", param_num)
-                    rparam_name = dec.get('name')
-                    if not rparam_name:
-                        rparam_name = param.get('name')
-                    method_data['requestParams'].append({
-                            "name": rparam_name,
-                            "param": param_num,
-                            "defaultValue": dec.get('defaultValue'),
-                            "required": dec.get('required'),
-                            "type": param.get('class')
-                    })
-                else:
-                    print("Param", param_num, "in", method_name, "is not annotated")
+                self.process_param_decorator(
+                        dec,
+                        param,
+                        param_num,
+                        method_data
+                )
 
-    def process_constructor(self, signature: List, class_dependencies: Dict) -> None:
+    def process_param_decorator(
+            self,
+            dec: Dict,
+            param: Dict,
+            param_num: int,
+            method_data: Dict
+    ) -> None:
+        method_name = method_data['methodName']
+        if dec.get('__decorator__') == "RequestBody":
+            print(f"Found @RequestBody for {method_name} at {param_num}")
+            method_data['bodyParam'] = param_num
+            method_data['bodyParamType'] = param.get('class')
+        elif dec.get('__decorator__') == "PathVariable":
+            print("Found @PathVariable for", method_name, "at", param_num)
+            path_name = dec.get('name')
+            if not path_name:
+                path_name = param.get('name')
+            method_data['pathVariables'].append({
+                    "name": path_name,
+                    "param": param_num,
+                    "defaultValue": dec.get('defaultValue'),
+                    "required": dec.get('required'),
+                    "type": param.get('class')
+            })
+        elif dec.get('__decorator__') == "RequestHeader":
+            print("Found @RequestHeader for", method_name, "at", param_num)
+            header_name = dec.get('name')
+            if not header_name:
+                header_name = param.get('name')
+            method_data['headers'].append({
+                    "name": header_name,
+                    "param": param_num,
+                    "required": dec.get('required'),
+                    "type": param.get('class')
+            })
+        elif dec.get('__decorator__') == "RequestParam":
+            print("Found @RequestParam for", method_name, "at", param_num)
+            rparam_name = dec.get('name')
+            if not rparam_name:
+                rparam_name = param.get('name')
+            method_data['requestParams'].append({
+                    "name": rparam_name,
+                    "param": param_num,
+                    "defaultValue": dec.get('defaultValue'),
+                    "required": dec.get('required'),
+                    "type": param.get('class')
+            })
+        else:
+            print("Param", param_num, "in", method_name, "is not annotated")
+
+    def process_constructor(
+            self,
+            signature: List,
+            class_dependencies: Dict
+    ) -> None:
         for param_num, param in enumerate(signature):
             if not param:
                 continue
@@ -204,67 +221,75 @@ class HippoContainer(Servlet):
                         "Content-Type": "text/html"
                     }
             }
-        if route:
-            params: List[Any] = [None] * route['paramLen']
 
-            requestBody = request.get('body')
-            bodyParamType = route.get('bodyParamType')
-            if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
-                if bodyParamType in [dict, Dict] or get_origin(bodyParamType) is dict:
-                    try:
-                        requestBody = json.loads(requestBody)
-                    except Exception:
-                        print("Malformed json")
-            if route['bodyParam'] is not None:
-                params[route['bodyParam']] = requestBody
+        params: List[Any] = [None] * route['paramLen']
+        self.set_body_param(params, request, route)
+        self.set_request_params(params, query_params, route)
+        self.set_path_variables(params, pathvars, route)
+        self.set_header_params(params, request, route)
 
-            for rparam in route['requestParams']:
-                valueList = query_params.get(rparam['name'])
-                value: Optional[Union[int, str]] = None
-                if isinstance(valueList, list):
-                    value = valueList[0] if len(valueList) > 0 else None
-                else:
-                    value = valueList
-                if value is not None and type(value) is not rparam['type']:
-                    # TODO: other primitive types (?)
-                    if rparam['type'] is int:
-                        value = int(value)
-                if value is None and rparam['defaultValue'] is not None:
-                    value = rparam['defaultValue']
-                params[rparam['param']] = value
-
-            for pathvar in route['pathVariables']:
-                value = pathvars.get(pathvar['name'])
-                if value is not None and type(value) is not pathvar['type']:
-                    # TODO: other primitive types (?)
-                    if pathvar['type'] is int:
-                        value = int(value)
-                if value is None and pathvar['defaultValue'] is not None:
-                    value = pathvar['defaultValue']
-                params[pathvar['param']] = value
-
-            for headervar in route['headers']:
-                value = None
-                # TODO: do that more elegant
-                for header in request['headers']:
-                    if header == headervar['name']:
-                        value = request['headers'][header]
-                        break
-                if value is not None and type(value) is not headervar['type']:
-                    # TODO: other primitive types (?)
-                    if headervar['type'] is int:
-                        value = int(value)
-                params[headervar['param']] = value
-
-            try:
-                component_name = cast(str, route.get('component'))
-                component = self.getComponent(component_name)
-                resp = route['method'](component, *params)
-                return self.transform_response(resp)
-            except Exception as e:
-                return self.process_exception(e)
+        try:
+            component_name = cast(str, route.get('component'))
+            component = self.getComponent(component_name)
+            resp = route['method'](component, *params)
+            return self.transform_response(resp)
+        except Exception as e:
+            return self.process_exception(e)
 
         return {}
+
+    def set_body_param(self, params: List, request: Dict, route: Dict) -> None:
+        requestBody = request.get('body')
+        bodyParamType = route.get('bodyParamType')
+        if requestBody is not None and bodyParamType is not None and bodyParamType is not str:
+            if bodyParamType in [dict, Dict] or get_origin(bodyParamType) is dict:
+                try:
+                    requestBody = json.loads(requestBody)
+                except Exception:
+                    print("Malformed json")
+        if route['bodyParam'] is not None:
+            params[route['bodyParam']] = requestBody
+
+    def set_request_params(self, params: List, query_params: Dict, route: Dict) -> None:
+        for rparam in route['requestParams']:
+            valueList = query_params.get(rparam['name'])
+            value: Optional[Union[int, str]] = None
+            if isinstance(valueList, list):
+                value = valueList[0] if len(valueList) > 0 else None
+            else:
+                value = valueList
+            if value is not None and type(value) is not rparam['type']:
+                # TODO: other primitive types (?)
+                if rparam['type'] is int:
+                    value = int(value)
+            if value is None and rparam['defaultValue'] is not None:
+                value = rparam['defaultValue']
+            params[rparam['param']] = value
+
+    def set_path_variables(self, params: List, pathvars: Dict, route: Dict) -> None:
+        for pathvar in route['pathVariables']:
+            value = pathvars.get(pathvar['name'])
+            if value is not None and type(value) is not pathvar['type']:
+                # TODO: other primitive types (?)
+                if pathvar['type'] is int:
+                    value = int(value)
+            if value is None and pathvar['defaultValue'] is not None:
+                value = pathvar['defaultValue']
+            params[pathvar['param']] = value
+
+    def set_header_params(self, params: List, request: Dict, route: Dict) -> None:
+        for headervar in route['headers']:
+            value = None
+            # TODO: do that more elegant
+            for header in request['headers']:
+                if header == headervar['name']:
+                    value = request['headers'][header]
+                    break
+            if value is not None and type(value) is not headervar['type']:
+                # TODO: other primitive types (?)
+                if headervar['type'] is int:
+                    value = int(value)
+            params[headervar['param']] = value
 
     def getComponent(self, name: str) -> Any:
         component = self.components.get(name)
