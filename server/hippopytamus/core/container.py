@@ -26,7 +26,7 @@ class HippoContainer(Servlet):
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
-        class_dependencies = []
+        class_dependencies: List = []
 
         for method in metadata:
             method_name = method.get('name', 'unknown')
@@ -159,7 +159,7 @@ class HippoContainer(Servlet):
     def process_constructor(
             self,
             signature: List,
-            class_dependencies: Dict
+            class_dependencies: List
     ) -> None:
         for param_num, param in enumerate(signature):
             if not param:
@@ -239,7 +239,9 @@ class HippoContainer(Servlet):
         return {}
 
     def set_body_param(self, params: List, request: Dict, route: Dict) -> None:
-        requestBody = request.get('body')
+        requestBody: Optional[str] = request.get('body')
+        if requestBody is None:
+            return
         bodyParamType = route.get('bodyParamType')
         if self.needs_conversion(requestBody, bodyParamType):
             if self.is_dict(bodyParamType):
@@ -357,7 +359,8 @@ class HippoContainer(Servlet):
             except Exception:
                 print("Couldn't create component needed for exception handler")
         print(handler)
-        return handler.transform(e)
+        # TODO: create dummy exception if needed
+        return handler.transform(e)  # type: ignore
 
     # TODO: this is rather primitive temporary solution
     def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:
