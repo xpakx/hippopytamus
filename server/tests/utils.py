@@ -15,18 +15,27 @@ class HttpResponse:
 
 class TestClient:
     def connect(self, host: str, port: int) -> None:
+        self.once_connected = False
+        self.host = host
+        self.port = port
+
+    def do_connect(self, host: str, port: int) -> None:
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.settimeout(2)
-        time.sleep(0.5)  # TODO
+        if not self.once_connected:
+            time.sleep(0.5)  # TODO
         self.client.connect((host, port))
+        self.once_connected = True
 
     def close(self) -> None:
         self.client.close()
 
     def send(self, method: str, uri: str, body=None, headers=None):
+        self.do_connect(self.host, self.port)
         self.client.sendall(make_request_bytes(method, uri, body=body, headers=headers))
         status, headers, resp_body = parse_http_response(self.client.recv(8192))
         code = int(status.split()[1])  # TODO: errors
+        self.close()
         return HttpResponse(
                 method=method,
                 status=status,
