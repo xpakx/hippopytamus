@@ -261,7 +261,12 @@ class HippoContainer(Servlet):
     def is_dict(self, paramType: Any) -> bool:
         return paramType in [dict, Dict] or get_origin(paramType) is dict
 
-    def set_request_params(self, params: List, query_params: Dict, route: Dict) -> None:
+    def set_request_params(
+            self,
+            params: List,
+            query_params: Dict,
+            route: Dict
+    ) -> None:
         for rparam in route['requestParams']:
             valueList = query_params.get(rparam['name'])
             value: Optional[Union[int, str]] = None
@@ -277,7 +282,12 @@ class HippoContainer(Servlet):
                 value = rparam['defaultValue']
             params[rparam['param']] = value
 
-    def set_path_variables(self, params: List, pathvars: Dict, route: Dict) -> None:
+    def set_path_variables(
+            self,
+            params: List,
+            pathvars: Dict,
+            route: Dict
+    ) -> None:
         for pathvar in route['pathVariables']:
             value = pathvars.get(pathvar['name'])
             if value is not None and type(value) is not pathvar['type']:
@@ -288,7 +298,12 @@ class HippoContainer(Servlet):
                 value = pathvar['defaultValue']
             params[pathvar['param']] = value
 
-    def set_header_params(self, params: List, request: Dict, route: Dict) -> None:
+    def set_header_params(
+            self,
+            params: List,
+            request: Dict,
+            route: Dict
+    ) -> None:
         for headervar in route['headers']:
             value = None
             # TODO: do that more elegant
@@ -363,7 +378,11 @@ class HippoContainer(Servlet):
         return handler.transform(e)  # type: ignore
 
     # TODO: this is rather primitive temporary solution
-    def try_find_varroute(self, routes: Dict[str, Any], uri: str) -> Tuple[Optional[Dict], Dict]:
+    def try_find_varroute(
+            self,
+            routes: Dict[str, Any],
+            uri: str
+    ) -> Tuple[Optional[Dict], Dict]:
         for key in routes:
             value = routes[key]
             if '{' not in key:
