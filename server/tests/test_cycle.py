@@ -28,3 +28,12 @@ def test_hello_triggers_exception_handler(client: TestClient):
 
     assert resp.code == 500
     assert "Test error" in resp.body
+
+
+def test_server_works_after_exception(client: TestClient):
+    client.get("/hello")
+
+    resp = client.get("/hello")
+
+    assert resp.code == 500
+    assert "Test error" in resp.body
