@@ -32,6 +32,8 @@ class HippoApp:
             self.container.register(cls)
         exceptions = self.get_status_exceptions(all_classes)
         print("EXCEPTIONS:", exceptions)
+        for cls in exceptions:
+            self.container.exceptionManager.register_exception(cls)
         self.server = SelectTCPServer(
                 HttpProtocol10(),
                 self.container, host=opt.host, port=opt.port)

@@ -256,6 +256,6 @@ def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
     if callable(code):
         func = code
         wrapper = get_request_wrapper()
-        return wrapper(func)
+        return wrapper(func)  # type: ignore
     else:
         return get_status_wrapper(code, reason)

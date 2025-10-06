@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Any, cast
+from typing import Dict, Optional, Any, cast, Type
+from hippopytamus.core.extractor import get_class_argdecorators
 
 
 class HippoExceptionHandler(ABC):
@@ -92,5 +93,40 @@ class HippoExceptionManager:
                 self.component = comp
         self.register_exception_handler(MethodHandler())
 
+    def register_exception(self, cls: Type[Exception]) -> None:
+        exc_name = cls.__name__
+        class_decorators = get_class_argdecorators(cls)
+        status_data = None
+        for dec in class_decorators:
+            dec_name = dec.get('__decorator__')
+            if dec_name == "ResponseStatus":
+                status_data = dec
+                break
+        if status_data is None:
+            return
+        print(exc_name)
+        print(status_data)
+        code = status_data.get('code', 500)
+        body = status_data.get('reason', '')
+
+        class MethodHandler(HippoExceptionHandler):
+            def __init__(self) -> None:
+                self.component = None
+
+            def get_type(self) -> Optional[str]:
+                return exc_name
+
+            def transform(self, exception: Exception) -> Dict:
+                return {
+                        "code": code,
+                        "body": body,
+                }
+
+            def get_component(self) -> Optional[str]:
+                return None
+
+            def set_component(self, comp: Any) -> None:
+                pass
+        self.register_exception_handler(MethodHandler())
 
 # TODO: @ControllerAdvice
