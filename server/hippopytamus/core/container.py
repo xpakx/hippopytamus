@@ -2,6 +2,7 @@ from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List, Tuple, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
+from hippopytamus.core.extractor import get_type_name
 from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
@@ -17,7 +18,7 @@ class HippoContainer(Servlet):
     exceptionManager = HippoExceptionManager()
 
     def register(self, cls: Type) -> None:
-        component_name = cls.__name__
+        component_name = get_type_name(cls)
         metadata = get_class_data(cls)
         class_decorators = get_class_argdecorators(cls)
         url_prepend = None
@@ -169,9 +170,11 @@ class HippoContainer(Servlet):
                 continue  # TODO: guess type
             dep_name = ""
             if type(param_name) is str:
+                # MAYBE: this should be improved to make it possible
+                # to prepend module names
                 dep_name = param_name
             else:
-                dep_name = param_name.__name__
+                dep_name = get_type_name(param_name)
             value = False
             for annot in param.get('annotations'):
                 if annot['__decorator__'] == 'Value':
@@ -362,7 +365,7 @@ class HippoContainer(Servlet):
 
     def process_exception(self, e: Union[Exception, str]) -> Dict:
         print("Error in handler:", repr(e))
-        ex_type = type(e).__name__ if type(e) is not str else e
+        ex_type = get_type_name(type(e)) if type(e) is not str else e
         print("Exception type:", ex_type)
         handler = self.exceptionManager.get_exception_handler(ex_type)
         if handler is None:

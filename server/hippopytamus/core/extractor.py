@@ -78,3 +78,9 @@ def get_class_data(cls: Type) -> List[Any]:
             methods.append(current_method)
     print(methods)
     return methods
+
+
+def get_type_name(cls: Type) -> str:
+    # MAYBE: prepend package name
+    # this would require improving string type hints processing
+    return cls.__name__

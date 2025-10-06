@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Any, cast, Type
-from hippopytamus.core.extractor import get_class_argdecorators
+from hippopytamus.core.extractor import (
+        get_class_argdecorators, get_type_name
+)
 
 
 class HippoExceptionHandler(ABC):
@@ -69,7 +71,7 @@ class HippoExceptionManager:
     def create_handler(self, annotation: Dict, method: Any, component: Any) -> None:
         print("Creating handler for", annotation)
         exception_type = annotation.get('type', None)
-        type_str = cast(str, exception_type.__name__) if exception_type is not None else None
+        type_str = get_type_name(exception_type) if exception_type is not None else None
 
         print("Method to create handler", method)
         method_handler = method.get('method_handle')
@@ -94,7 +96,7 @@ class HippoExceptionManager:
         self.register_exception_handler(MethodHandler())
 
     def register_exception(self, cls: Type[Exception]) -> None:
-        exc_name = cls.__name__
+        exc_name = get_type_name(cls)
         class_decorators = get_class_argdecorators(cls)
         status_data = None
         for dec in class_decorators:
