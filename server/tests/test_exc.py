@@ -7,7 +7,7 @@ from .utils import TestClient, get_free_port
 @pytest.fixture
 def app_server() -> int:
     port = get_free_port()
-    app = HippoApp("hippopytamus.example.example2", ServerOptions(port=port, host="localhost"))
+    app = HippoApp("hippopytamus.example.example3", ServerOptions(port=port, host="localhost"))
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
     return port
@@ -23,8 +23,16 @@ def client(app_server: int) -> TestClient:
         c.close()
 
 
-def test_hello_triggers_exception_handler(client: TestClient):
-    resp = client.get("/hello")
+def test_response_status_annotation_on_exception(client: TestClient):
+    resp = client.get("/exception")
 
-    assert resp.code == 500
-    assert "Test error" in resp.body
+    assert resp.code == 404
+    assert resp.body == ''
+
+
+def test_server_works_after_exception(client: TestClient):
+    client.get("/exception")
+
+    resp = client.get("/exception")
+
+    assert resp.code == 404
