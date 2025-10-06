@@ -24,10 +24,11 @@ class HippoApp:
             module_name: str,
             opt: ServerOptions = ServerOptions()
             ) -> None:
-        classes = self.get_module_classes(module_name)
-        print(classes)
+        all_classes = self.get_module_classes(module_name)
+        components = self.get_components(all_classes)
+        print(components)
         self.container = HippoContainer()
-        for cls in classes:
+        for cls in components:
             self.container.register(cls)
         self.server = SelectTCPServer(
                 HttpProtocol10(),
@@ -59,6 +60,8 @@ class HippoApp:
             except ImportError as e:
                 print(f"Failed to import module {module_name}: {e}")
 
-        classes = [obj for name, obj in all_classes if
-                   'Component' in get_class_decorators(obj)]
-        return classes
+        return all_classes
+
+    def get_components(self, all_classes: List[Any]) -> List[Any]:
+        return [obj for name, obj in all_classes if
+                'Component' in get_class_decorators(obj)]
