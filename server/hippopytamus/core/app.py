@@ -30,6 +30,8 @@ class HippoApp:
         self.container = HippoContainer()
         for cls in components:
             self.container.register(cls)
+        exceptions = self.get_status_exceptions(all_classes)
+        print("EXCEPTIONS:", exceptions)
         self.server = SelectTCPServer(
                 HttpProtocol10(),
                 self.container, host=opt.host, port=opt.port)
@@ -65,3 +67,11 @@ class HippoApp:
     def get_components(self, all_classes: List[Any]) -> List[Any]:
         return [obj for name, obj in all_classes if
                 'Component' in get_class_decorators(obj)]
+
+    def get_status_exceptions(self, all_classes: List[Any]) -> List[Any]:
+        return [
+            obj for name, obj in all_classes
+            if issubclass(obj, Exception)
+            and obj is not Exception
+            and 'ResponseStatusException' in get_class_decorators(obj)
+        ]
