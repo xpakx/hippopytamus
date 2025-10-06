@@ -191,9 +191,10 @@ def Value(cls: T, value: str) -> HippoArgDecorator:
     }
     return Annotated[cls, AnnotationMetadata(metadata)]
 
+# TODO: PropertySource
 
-# PropertySource
 
+# Exception handler
 def get_exception_wrapper(exc_type: Optional[type[Exception]] = None
                           ) -> Callable[[Callable], HippoDecoratorFunc]:
     def decorator(func: Callable) -> HippoDecoratorFunc:
@@ -219,3 +220,42 @@ def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
         func = exc_type
         wrapper = get_exception_wrapper()
         return wrapper(func)  # type: ignore
+
+
+# Response status
+def get_status_wrapper(code: int = 500, reason: str = "") -> Callable[[Callable], Union[HippoDecoratorFunc, HippoDecoratorClass]]:
+    def decorator(func: Callable) -> Union[HippoDecoratorFunc, HippoDecoratorClass]:
+        if inspect.isclass(func):
+            if not hasattr(func, "__hippo_decorators"):
+                func.__hippo_decorators = []
+            if not hasattr(func, "__hippo_argdecorators"):
+                func.__hippo_argdecorators = []
+            func.__hippo_decorators.append("ResponseStatusException")
+            func.__hippo_argdecorators.append(
+                    {
+                        "__decorator__": "ResponseStatus",
+                        "code": code,
+                        "reason": reason,
+                        })
+            return cast(HippoDecoratorClass, func)
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):  # type: ignore
+                return func(*args, **kwargs)
+            hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
+            hippo_wrapper.__hippo_decorator = {
+                    "__decorator__": "RequestMapping",
+                    "code": code,
+                    "reason": reason,
+                }
+            return hippo_wrapper
+    return decorator
+
+
+def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
+    if callable(code):
+        func = code
+        wrapper = get_request_wrapper()
+        return wrapper(func)
+    else:
+        return get_status_wrapper(code, reason)
