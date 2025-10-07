@@ -20,10 +20,11 @@ class ComponentData:
 
 
 class HippoContainer(Servlet):
-    components: Dict[str, ComponentData] = {}
-    exceptionManager = HippoExceptionManager()
-    method_processor = HippoMethodProcessor()
-    router = HippoRouter()
+    def __init__(self):
+        self.components: Dict[str, ComponentData] = {}
+        self.exceptionManager = HippoExceptionManager()
+        self.method_processor = HippoMethodProcessor()
+        self.router = HippoRouter()
 
     def register(self, cls: Type) -> None:
         component_name = get_type_name(cls)
@@ -206,7 +207,6 @@ class HippoContainer(Servlet):
         if not component.component:
             deps = component.dependencies
             params: List[Any] = [None] * len(deps)
-            # TODO: detect cycles
             for param in deps:
                 if (param.dependencyType == 'Component'):
                     params[param.param] = self.getComponent(param.name)

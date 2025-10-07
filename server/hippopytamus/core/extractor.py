@@ -60,7 +60,8 @@ def get_class_data(cls: Type) -> List[Any]:
             signature.append(extracted_signature)
         current_method['signature'] = signature
 
-        type_hints = get_type_hints(method)
+        # TODO: detect cycles and inform user
+        type_hints = get_type_hints(method, globals(), locals())
         current_method['arguments'] = type_hints
 
         decorators = []
@@ -81,6 +82,4 @@ def get_class_data(cls: Type) -> List[Any]:
 
 
 def get_type_name(cls: Type) -> str:
-    # MAYBE: prepend package name
-    # this would require improving string type hints processing
-    return cls.__name__
+    return f"{cls.__module__}.{cls.__name__}"

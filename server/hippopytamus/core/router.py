@@ -6,10 +6,11 @@ from hippopytamus.core.method_parser import RouteData
 
 
 class HippoRouter:
-    getRoutes: Dict[str, RouteData] = {}
-    postRoutes: Dict[str, RouteData] = {}
-    putRoutes: Dict[str, RouteData] = {}
-    deleteRoutes: Dict[str, RouteData] = {}
+    def __init__(self):
+        self.getRoutes: Dict[str, RouteData] = {}
+        self.postRoutes: Dict[str, RouteData] = {}
+        self.putRoutes: Dict[str, RouteData] = {}
+        self.deleteRoutes: Dict[str, RouteData] = {}
 
     def routes_by_method(self, method: str) -> Dict[str, RouteData]:
         if method == 'POST':

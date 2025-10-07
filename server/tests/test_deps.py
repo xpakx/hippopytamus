@@ -61,7 +61,9 @@ def test_hello_with_headers(client: TestClient):
 
 def test_dependency_injection_autowiring():
     app = HippoApp("hippopytamus.example.example1", ServerOptions(port=0))
-    controller = app.container.getComponent("UserController")
+    controller = app.container.getComponent(
+            "hippopytamus.example.example1.deps.UserController"
+    )
 
     assert controller is not None
     assert hasattr(controller, "service")
@@ -72,7 +74,9 @@ def test_dependency_injection_autowiring():
 
 def test_dependency_injection_value():
     app = HippoApp("hippopytamus.example.example1", ServerOptions(port=0))
-    controller = app.container.getComponent("UserController")
+    controller = app.container.getComponent(
+            "hippopytamus.example.example1.deps.UserController"
+    )
 
     assert controller is not None
     assert controller.service is not None
