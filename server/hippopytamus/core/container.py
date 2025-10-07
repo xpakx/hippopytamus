@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class MethodData:
+class RouteData:
     component: str = "unknown"
     methodName: str = "unknown"
     method: Any = None
@@ -23,12 +23,38 @@ class MethodData:
     headers: List = field(default_factory=list)
 
 
+@dataclass
+class MethodData:
+    component: str = "unknown"
+    methodName: str = "unknown"
+    method: Any = None
+    bodyParam: Optional[int] = None
+    bodyParamType: Optional[Type] = None
+    paramLen: int = 0
+    pathVariables: List = field(default_factory=list)
+    requestParams: List = field(default_factory=list)
+    headers: List = field(default_factory=list)
+
+    def to_route(self) -> RouteData:
+        return RouteData(
+                component=self.component,
+                methodName=self.methodName,
+                method=self.method,
+                bodyParam=self.bodyParam,
+                bodyParamType=self.bodyParamType,
+                paramLen=self.paramLen,
+                pathVariables=self.pathVariables,
+                requestParams=self.requestParams,
+                headers=self.headers,
+        )
+
+
 class HippoContainer(Servlet):
     components: Dict[str, Any] = {}
-    getRoutes: Dict[str, MethodData] = {}
-    postRoutes: Dict[str, MethodData] = {}
-    putRoutes: Dict[str, MethodData] = {}
-    deleteRoutes: Dict[str, MethodData] = {}
+    getRoutes: Dict[str, RouteData] = {}
+    postRoutes: Dict[str, RouteData] = {}
+    putRoutes: Dict[str, RouteData] = {}
+    deleteRoutes: Dict[str, RouteData] = {}
     exceptionManager = HippoExceptionManager()
 
     def register(self, cls: Type) -> None:
@@ -64,7 +90,11 @@ class HippoContainer(Servlet):
             print("DECORATORS:", method['decorators'])
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
-                    self.register_route(annotation, method_data, url_prepend)
+                    self.register_route(
+                            annotation,
+                            method_data.to_route(),
+                            url_prepend
+                    )
                 elif annotation['__decorator__'] == "ExceptionHandler":
                     print("Found @ExceptionHandler in", method_name)
                     self.exceptionManager.create_handler(
@@ -84,7 +114,7 @@ class HippoContainer(Servlet):
     def register_route(
             self,
             annotation: Dict,
-            method_data: MethodData,
+            method_data: RouteData,
             url_prepend: Optional[str]
     ) -> None:
         mapping_meth = annotation.get('method', 'GET')
@@ -250,7 +280,7 @@ class HippoContainer(Servlet):
 
         return {}
 
-    def set_body_param(self, params: List, request: Dict, route: MethodData) -> None:
+    def set_body_param(self, params: List, request: Dict, route: RouteData) -> None:
         requestBody: Optional[str] = request.get('body')
         if requestBody is None:
             return
@@ -277,7 +307,7 @@ class HippoContainer(Servlet):
             self,
             params: List,
             query_params: Dict,
-            route: MethodData
+            route: RouteData
     ) -> None:
         for rparam in route.requestParams:
             valueList = query_params.get(rparam['name'])
@@ -298,7 +328,7 @@ class HippoContainer(Servlet):
             self,
             params: List,
             pathvars: Dict,
-            route: MethodData
+            route: RouteData
     ) -> None:
         for pathvar in route.pathVariables:
             value = pathvars.get(pathvar['name'])
@@ -314,7 +344,7 @@ class HippoContainer(Servlet):
             self,
             params: List,
             request: Dict,
-            route: MethodData
+            route: RouteData
     ) -> None:
         for headervar in route.headers:
             value = None
@@ -394,7 +424,7 @@ class HippoContainer(Servlet):
             self,
             routes: Dict[str, Any],
             uri: str
-    ) -> Tuple[Optional[MethodData], Dict]:
+    ) -> Tuple[Optional[RouteData], Dict]:
         for key in routes:
             value = routes[key]
             if '{' not in key:
