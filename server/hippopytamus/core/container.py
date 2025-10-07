@@ -7,14 +7,28 @@ from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
 import re
+from dataclasses import dataclass, field
+
+
+@dataclass
+class MethodData:
+    component: str = "unknown"
+    methodName: str = "unknown"
+    method: Any = None
+    bodyParam: Optional[int] = None
+    bodyParamType: Optional[Type] = None
+    paramLen: int = 0
+    pathVariables: List = field(default_factory=list)
+    requestParams: List = field(default_factory=list)
+    headers: List = field(default_factory=list)
 
 
 class HippoContainer(Servlet):
     components: Dict[str, Any] = {}
-    getRoutes: Dict[str, Any] = {}
-    postRoutes: Dict[str, Any] = {}
-    putRoutes: Dict[str, Any] = {}
-    deleteRoutes: Dict[str, Any] = {}
+    getRoutes: Dict[str, MethodData] = {}
+    postRoutes: Dict[str, MethodData] = {}
+    putRoutes: Dict[str, MethodData] = {}
+    deleteRoutes: Dict[str, MethodData] = {}
     exceptionManager = HippoExceptionManager()
 
     def register(self, cls: Type) -> None:
@@ -35,17 +49,12 @@ class HippoContainer(Servlet):
             signature = method.get('signature', [])
             params_len = len(signature)
 
-            method_data = {
-                    "component": component_name,
-                    "methodName": method_name,
-                    "method": method['method_handle'],
-                    "bodyParam": None,
-                    "bodyParamType": None,
-                    "paramLen": params_len,
-                    "pathVariables": [],
-                    "requestParams": [],
-                    "headers": [],
-            }
+            method_data = MethodData(
+                    component=component_name,
+                    methodName=method_name,
+                    method=method['method_handle'],
+                    paramLen=params_len,
+            )
 
             if method_name == "__init__":
                 self.process_constructor(signature, class_dependencies)
@@ -75,7 +84,7 @@ class HippoContainer(Servlet):
     def register_route(
             self,
             annotation: Dict,
-            method_data: Dict,
+            method_data: MethodData,
             url_prepend: Optional[str]
     ) -> None:
         mapping_meth = annotation.get('method', 'GET')
@@ -91,7 +100,7 @@ class HippoContainer(Servlet):
                 p = f"{url_prepend}{path}" if url_prepend else path
                 routes[p] = method_data
 
-    def process_method(self, signature: List, method_data: Dict) -> None:
+    def process_method(self, signature: List, method_data: MethodData) -> None:
         for param_num, param in enumerate(signature):
             if not param:
                 # TODO: these are not type annotated
@@ -112,19 +121,19 @@ class HippoContainer(Servlet):
             dec: Dict,
             param: Dict,
             param_num: int,
-            method_data: Dict
+            method_data: MethodData
     ) -> None:
-        method_name = method_data['methodName']
+        method_name = method_data.methodName
         if dec.get('__decorator__') == "RequestBody":
             print(f"Found @RequestBody for {method_name} at {param_num}")
-            method_data['bodyParam'] = param_num
-            method_data['bodyParamType'] = param.get('class')
+            method_data.bodyParam = param_num
+            method_data.bodyParamType = param.get('class')
         elif dec.get('__decorator__') == "PathVariable":
             print("Found @PathVariable for", method_name, "at", param_num)
             path_name = dec.get('name')
             if not path_name:
                 path_name = param.get('name')
-            method_data['pathVariables'].append({
+            method_data.pathVariables.append({
                     "name": path_name,
                     "param": param_num,
                     "defaultValue": dec.get('defaultValue'),
@@ -136,7 +145,7 @@ class HippoContainer(Servlet):
             header_name = dec.get('name')
             if not header_name:
                 header_name = param.get('name')
-            method_data['headers'].append({
+            method_data.headers.append({
                     "name": header_name,
                     "param": param_num,
                     "required": dec.get('required'),
@@ -147,7 +156,7 @@ class HippoContainer(Servlet):
             rparam_name = dec.get('name')
             if not rparam_name:
                 rparam_name = param.get('name')
-            method_data['requestParams'].append({
+            method_data.requestParams.append({
                     "name": rparam_name,
                     "param": param_num,
                     "defaultValue": dec.get('defaultValue'),
@@ -225,35 +234,35 @@ class HippoContainer(Servlet):
                     }
             }
 
-        params: List[Any] = [None] * route['paramLen']
+        params: List[Any] = [None] * route.paramLen
         self.set_body_param(params, request, route)
         self.set_request_params(params, query_params, route)
         self.set_path_variables(params, pathvars, route)
         self.set_header_params(params, request, route)
 
         try:
-            component_name = cast(str, route.get('component'))
+            component_name = route.component
             component = self.getComponent(component_name)
-            resp = route['method'](component, *params)
+            resp = route.method(component, *params)
             return self.transform_response(resp)
         except Exception as e:
             return self.process_exception(e)
 
         return {}
 
-    def set_body_param(self, params: List, request: Dict, route: Dict) -> None:
+    def set_body_param(self, params: List, request: Dict, route: MethodData) -> None:
         requestBody: Optional[str] = request.get('body')
         if requestBody is None:
             return
-        bodyParamType = route.get('bodyParamType')
+        bodyParamType = route.bodyParamType
         if self.needs_conversion(requestBody, bodyParamType):
             if self.is_dict(bodyParamType):
                 try:
                     requestBody = json.loads(requestBody)
                 except Exception:
                     print("Malformed json")
-        if route['bodyParam'] is not None:
-            params[route['bodyParam']] = requestBody
+        if route.bodyParam is not None:
+            params[route.bodyParam] = requestBody
 
     def needs_conversion(self, obj: Any, obj_type: Any) -> bool:
         obj_exists = obj is not None
@@ -268,9 +277,9 @@ class HippoContainer(Servlet):
             self,
             params: List,
             query_params: Dict,
-            route: Dict
+            route: MethodData
     ) -> None:
-        for rparam in route['requestParams']:
+        for rparam in route.requestParams:
             valueList = query_params.get(rparam['name'])
             value: Optional[Union[int, str]] = None
             if isinstance(valueList, list):
@@ -289,9 +298,9 @@ class HippoContainer(Servlet):
             self,
             params: List,
             pathvars: Dict,
-            route: Dict
+            route: MethodData
     ) -> None:
-        for pathvar in route['pathVariables']:
+        for pathvar in route.pathVariables:
             value = pathvars.get(pathvar['name'])
             if value is not None and type(value) is not pathvar['type']:
                 # TODO: other primitive types (?)
@@ -305,9 +314,9 @@ class HippoContainer(Servlet):
             self,
             params: List,
             request: Dict,
-            route: Dict
+            route: MethodData
     ) -> None:
-        for headervar in route['headers']:
+        for headervar in route.headers:
             value = None
             # TODO: do that more elegant
             for header in request['headers']:
@@ -385,7 +394,7 @@ class HippoContainer(Servlet):
             self,
             routes: Dict[str, Any],
             uri: str
-    ) -> Tuple[Optional[Dict], Dict]:
+    ) -> Tuple[Optional[MethodData], Dict]:
         for key in routes:
             value = routes[key]
             if '{' not in key:
