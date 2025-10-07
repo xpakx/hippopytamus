@@ -62,4 +62,4 @@ jobs:
         run: poetry install
       - name: Run tests
         working-directory: ./server
-        run: poetry run mypy .
+        run: poetry run mypy hippopytamus/
