@@ -1,14 +1,14 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
-from typing import List, Tuple, get_origin, Union
+from typing import List, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
 from hippopytamus.core.extractor import get_type_name
 from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
-import re
 from hippopytamus.core.method_parser import RouteData, MethodData, DependencyData
 from hippopytamus.core.method_parser import HippoMethodProcessor
+from hippopytamus.core.router import HippoRouter
 from dataclasses import dataclass, field
 
 
@@ -21,12 +21,9 @@ class ComponentData:
 
 class HippoContainer(Servlet):
     components: Dict[str, ComponentData] = {}
-    getRoutes: Dict[str, RouteData] = {}
-    postRoutes: Dict[str, RouteData] = {}
-    putRoutes: Dict[str, RouteData] = {}
-    deleteRoutes: Dict[str, RouteData] = {}
     exceptionManager = HippoExceptionManager()
     method_processor = HippoMethodProcessor()
+    router = HippoRouter()
 
     def register(self, cls: Type) -> None:
         component_name = get_type_name(cls)
@@ -64,7 +61,7 @@ class HippoContainer(Servlet):
             print("DECORATORS:", method['decorators'])
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
-                    self.register_route(
+                    self.router.register_route(
                             annotation,
                             method_data.to_route(),
                             url_prepend
@@ -85,51 +82,16 @@ class HippoContainer(Servlet):
                 dependencies=class_dependencies,
         )
 
-    def register_route(
-            self,
-            annotation: Dict,
-            method_data: RouteData,
-            url_prepend: Optional[str]
-    ) -> None:
-        mapping_meth = annotation.get('method', 'GET')
-        for meth in mapping_meth:
-            routes = self.getRoutes
-            if meth == 'POST':
-                routes = self.postRoutes
-            if meth == 'PUT':
-                routes = self.putRoutes
-            if meth == 'DELETE':
-                routes = self.deleteRoutes
-            for path in annotation['path']:
-                p = f"{url_prepend}{path}" if url_prepend else path
-                routes[p] = method_data
-
     def process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
             raise Exception("Error")
-        # TODO path variables
-        # TODO tree-based routing
         # TODO extracting and transforming body, path variables, query params
         uri = request['uri']
         parsed = urlparse(uri)
         query_params = parse_qs(parsed.query)
         uri = parsed.path
-
-        mapping_meth = request.get('method', 'GET')
-        routes = self.getRoutes
-        if mapping_meth == 'POST':
-            routes = self.postRoutes
-        if mapping_meth == 'PUT':
-            routes = self.putRoutes
-        if mapping_meth == 'DELETE':
-            routes = self.deleteRoutes
-
-        route = routes.get(uri)
-        pathvars: Dict[str, Any] = {}
-        print(route)
-        if not route:
-            route, pathvars = self.try_find_varroute(routes, uri)
-            print(route, pathvars)
+        route, pathvars = self.router.get_route(uri, request)
+        print("PROCESSED:", pathvars)
 
         if not route:
             # TODO: use exception manager
@@ -296,24 +258,3 @@ class HippoContainer(Servlet):
         print(handler)
         # TODO: create dummy exception if needed
         return handler.transform(e)  # type: ignore
-
-    # TODO: this is rather primitive temporary solution
-    def try_find_varroute(
-            self,
-            routes: Dict[str, Any],
-            uri: str
-    ) -> Tuple[Optional[RouteData], Dict]:
-        for key in routes:
-            value = routes[key]
-            if '{' not in key:
-                continue
-            pattern = re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", key)
-            pattern = f"^{pattern}$"
-            route_regex = re.compile(pattern)
-
-            match = route_regex.match(uri)
-            if match:
-                path_vars = match.groupdict()
-                print(path_vars)
-                return value, path_vars
-        return None, {}
