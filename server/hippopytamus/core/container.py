@@ -7,12 +7,20 @@ from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
 import re
-from hippopytamus.core.method_parser import RouteData, MethodData
+from hippopytamus.core.method_parser import RouteData, MethodData, DependencyData
 from hippopytamus.core.method_parser import HippoMethodProcessor
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ComponentData:
+    component: Optional[Any]
+    componentClass: Type
+    dependencies: List[DependencyData] = field(default_factory=list)
 
 
 class HippoContainer(Servlet):
-    components: Dict[str, Any] = {}
+    components: Dict[str, ComponentData] = {}
     getRoutes: Dict[str, RouteData] = {}
     postRoutes: Dict[str, RouteData] = {}
     putRoutes: Dict[str, RouteData] = {}
@@ -30,7 +38,7 @@ class HippoContainer(Servlet):
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
-        class_dependencies: List = []
+        class_dependencies: List[DependencyData] = []
 
         for method in metadata:
             method_name = method.get('name', 'unknown')
@@ -67,15 +75,15 @@ class HippoContainer(Servlet):
                             cast(Dict, annotation),
                             method,
                             cls
-                        )
+                    )
 
         print(class_dependencies)
         # TODO: maybe create components with routes earlier
-        self.components[component_name] = {
-                "component": None,
-                "class": cls,
-                "dependencies": class_dependencies,
-        }
+        self.components[component_name] = ComponentData(
+                component=None,
+                componentClass=cls,
+                dependencies=class_dependencies,
+        )
 
     def register_route(
             self,
@@ -233,18 +241,18 @@ class HippoContainer(Servlet):
         component = self.components.get(name)
         if not component:
             return None
-        if not component['component']:
-            deps = component['dependencies']
+        if not component.component:
+            deps = component.dependencies
             params: List[Any] = [None] * len(deps)
             # TODO: detect cycles
             for param in deps:
-                if (param['type'] == 'Component'):
-                    params[param['param']] = self.getComponent(param['name'])
-                elif param['type'] == 'Value':
-                    params[param['param']] = eval(param['name'])  # TODO
-            component['component'] = component['class'](*params)
+                if (param.dependencyType == 'Component'):
+                    params[param.param] = self.getComponent(param.name)
+                elif param.dependencyType == 'Value':
+                    params[param.param] = eval(param.name)  # TODO
+            component.component = component.componentClass(*params)
 
-        return component['component']
+        return component.component
 
     def transform_response(self, resp: Response) -> Dict[str, Any]:
         # TODO add ResponseBody, and transform pydantic/pydantic-like types

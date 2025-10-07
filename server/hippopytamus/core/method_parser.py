@@ -5,6 +5,13 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class DependencyData:
+    name: str = "unknown"
+    dependencyType: str = "Component"
+    param: int = 0
+
+
+@dataclass
 class RouteData:
     component: str = "unknown"
     methodName: str = "unknown"
@@ -113,7 +120,7 @@ class HippoMethodProcessor:
     def process_constructor(
             self,
             signature: List,
-            class_dependencies: List
+            class_dependencies: List[DependencyData]
     ) -> None:
         for param_num, param in enumerate(signature):
             if not param:
@@ -134,8 +141,8 @@ class HippoMethodProcessor:
                     value = True
                     dep_name = annot['value']
                     break
-            class_dependencies.append({
-                    "name": dep_name,
-                    "type": "Component" if not value else "Value",
-                    "param": param_num,
-            })
+            class_dependencies.append(DependencyData(
+                    name=dep_name,
+                    dependencyType="Component" if not value else "Value",
+                    param=param_num,
+            ))
