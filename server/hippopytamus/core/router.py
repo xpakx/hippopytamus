@@ -6,7 +6,7 @@ from hippopytamus.core.method_parser import RouteData
 
 
 class HippoRouter:
-    def __init__(self):
+    def __init__(self) -> None:
         self.getRoutes: Dict[str, RouteData] = {}
         self.postRoutes: Dict[str, RouteData] = {}
         self.putRoutes: Dict[str, RouteData] = {}
@@ -34,7 +34,11 @@ class HippoRouter:
                 p = f"{url_prepend}{path}" if url_prepend else path
                 routes[p] = method_data
 
-    def get_route(self, uri: str, request: Request) -> Optional[Tuple[RouteData, Dict[str, Any]]]:
+    def get_route(
+            self,
+            uri: str,
+            request: Dict
+    ) -> Tuple[Optional[RouteData], Dict[str, Any]]:
         mapping_meth = request.get('method', 'GET')
         routes = self.routes_by_method(mapping_meth)
         route = routes.get(uri)

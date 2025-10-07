@@ -20,7 +20,7 @@ class ComponentData:
 
 
 class HippoContainer(Servlet):
-    def __init__(self):
+    def __init__(self) -> None:
         self.components: Dict[str, ComponentData] = {}
         self.exceptionManager = HippoExceptionManager()
         self.method_processor = HippoMethodProcessor()
