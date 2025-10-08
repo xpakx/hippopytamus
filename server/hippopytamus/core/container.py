@@ -61,7 +61,7 @@ class HippoContainer(Servlet):
             else:
                 self.method_processor.process_method(signature, method_data)
 
-            self.logger.debug(f"Decorators: {method['decorators']}")
+            self.logger.debug(f"Found decorators for method {method_name}", decorators=method['decorators'])
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     self.router.register_route(

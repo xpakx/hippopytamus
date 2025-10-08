@@ -6,7 +6,7 @@ import functools
 
 
 # TODO: more args for print methods
-# TODO: context for print methods
+# TODO: extract actual printing to separate class for easier change
 
 
 def with_frame(fn: Callable) -> Callable:
@@ -106,36 +106,76 @@ class Logger:
         level: str,
         text: str,
         for_method: Optional[str],
-        for_line: Optional[int]
+        for_line: Optional[int],
+        **context: Any
     ) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        ctx_str = ""
+        if context is not None and len(context) > 0:
+            ctx_str = " (" + ", ".join(f"{k}={v!r}" for k, v in context.items()) + ")"
         print(
             f"{self._format_level(level)} "
             f"{timestamp} "
             f"{self.COLORS['CLASS']}{self.caller}{self.COLORS['RESET']}."
             f"{self.COLORS['METHOD']}{for_method}{self.COLORS['RESET']}"
-            f"{self.COLORS['LINE']}:{for_line}{self.COLORS['RESET']} - {text}"
+            f"{self.COLORS['LINE']}:{for_line}{self.COLORS['RESET']} - "
+            f"{text}{ctx_str}"
         )
 
     @with_frame
-    def log(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
-        self._log("LOG", text, for_method, for_line)
+    def log(
+            self,
+            text: str,
+            *args: Any,
+            for_method: Optional[str] = None,
+            for_line: Optional[int] = None,
+            **context: Any
+    ) -> None:
+        self._log("LOG", text, for_method, for_line, **context)
 
     @with_frame
-    def debug(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
-        self._log("DEBUG", text, for_method, for_line)
+    def debug(
+            self,
+            text: str,
+            *args: Any,
+            for_method: Optional[str] = None,
+            for_line: Optional[int] = None,
+            **context: Any
+    ) -> None:
+        self._log("DEBUG", text, for_method, for_line, **context)
 
     @with_frame
-    def info(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
-        self._log("INFO", text, for_method, for_line)
+    def info(
+            self,
+            text: str,
+            *args: Any,
+            for_method: Optional[str] = None,
+            for_line: Optional[int] = None,
+            **context: Any
+    ) -> None:
+        self._log("INFO", text, for_method, for_line, **context)
 
     @with_frame
-    def warn(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
-        self._log("WARN", text, for_method, for_line)
+    def warn(
+            self,
+            text: str,
+            *args: Any,
+            for_method: Optional[str] = None,
+            for_line: Optional[int] = None,
+            **context: Any
+    ) -> None:
+        self._log("WARN", text, for_method, for_line, **context)
 
     @with_frame
-    def error(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
-        self._log("ERROR", text, for_method, for_line)
+    def error(
+            self,
+            text: str,
+            *args: Any,
+            for_method: Optional[str] = None,
+            for_line: Optional[int] = None,
+            **context: Any
+    ) -> None:
+        self._log("ERROR", text, for_method, for_line, **context)
 
 
 class LoggerFactory:
