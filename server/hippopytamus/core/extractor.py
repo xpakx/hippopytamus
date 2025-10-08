@@ -6,6 +6,7 @@ from inspect import Signature, Parameter
 import inspect
 from hippopytamus.core.annotation import HippoDecoratorClass
 from hippopytamus.core.annotation import AnnotationMetadata
+from hippopytamus.logger.logger import LoggerFactory
 
 
 def get_class_decorators(cls: Type) -> List[str]:
@@ -38,10 +39,11 @@ def extract_underlying_type(name: str, param: Parameter) -> Optional[Dict[str, A
 
 
 def get_class_data(cls: Type) -> List[Any]:
-    print(cls)
-    print(f"Class name: {cls.__name__}")
-    print(f"class decorators: {get_class_decorators(cls)}")
-    print(f"class argdecorators: {get_class_argdecorators(cls)}")
+    logger = LoggerFactory.get_logger(for_cls="hippopytamus.core.extractor")
+    logger.debug(cls)
+    logger.debug(f"Class name: {cls.__name__}")
+    logger.debug(f"class decorators: {get_class_decorators(cls)}")
+    logger.debug(f"class argdecorators: {get_class_argdecorators(cls)}")
     all_methods = inspect.getmembers(cls, predicate=lambda x: callable(x))
     methods: List[Any] = []
     for name, method in all_methods:
@@ -77,7 +79,7 @@ def get_class_data(cls: Type) -> List[Any]:
         elif name == "__init__":
             current_method['decorators'] = []
             methods.append(current_method)
-    print(methods)
+    logger.debug(methods)
     return methods
 
 

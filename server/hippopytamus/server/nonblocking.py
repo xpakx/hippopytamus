@@ -1,5 +1,6 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
+from hippopytamus.logger.logger import LoggerFactory
 import select
 from typing import List, Any, Dict, Optional
 
@@ -15,12 +16,13 @@ class SimpleNonBlockingTCPServer:
         self.host = host
         self.port = port
         self.connections: List[Dict[str, Any]] = []
+        self.logger = LoggerFactory.get_logger()
 
     def accept_connection(self, sock: socket.socket) -> None:
         try:
             connection, address = sock.accept()
             connection.setblocking(False)
-            print(f"new client: {address}")
+            self.logger.info(f"new client: {address}")
             self.connections.append({
                 "connection": connection,
                 "address": address,
@@ -51,7 +53,7 @@ class SimpleNonBlockingTCPServer:
         except BlockingIOError:
             return False
         except Exception as err:
-            print(err)
+            self.logger.warn(err)
             conn['connection'].close()
             to_remove.append(i)
             return False
@@ -72,7 +74,7 @@ class SimpleNonBlockingTCPServer:
         sock.bind((self.host, self.port))
 
         sock.listen()
-        print(sock.getsockname())
+        self.logger.debug(sock.getsockname())
 
         to_remove: List[int] = []
         while True:
@@ -93,6 +95,7 @@ class SelectTCPServer:
         self.port = port
         self.connections: List[socket.socket] = []
         self.state: List[Any] = []
+        self.logger = LoggerFactory.get_logger()
 
     def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -101,7 +104,7 @@ class SelectTCPServer:
         sock.bind((self.host, self.port))
 
         sock.listen()
-        print(sock.getsockname())
+        self.logger.debug(sock.getsockname())
         self.connections.append(sock)
         self.state.append(None)
 
@@ -126,7 +129,7 @@ class SelectTCPServer:
     def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
-        # print(f"new client: {address}")
+        self.logger.info(f"new client: {address}")
         self.connections.append(connection)
         self.state.append({
             "address": address,
@@ -153,7 +156,7 @@ class SelectTCPServer:
             state['data'] += conn.recv(1024)
             return True
         except Exception as err:
-            print(err)
+            self.logger.warn(err)
             self.remove_connection(conn)
             return False
 
@@ -167,6 +170,7 @@ class PollTCPServer:
         self.port = port
         self.fdmap: Dict[int, Any] = {}
         self.poller: Optional[select.poll] = None
+        self.logger = LoggerFactory.get_logger()
 
     def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -175,7 +179,7 @@ class PollTCPServer:
         sock.bind((self.host, self.port))
 
         sock.listen()
-        print(sock.getsockname())
+        self.logger.debug(sock.getsockname())
 
         self.poller = select.poll()
         self.poller.register(sock, select.POLLIN)
@@ -207,7 +211,7 @@ class PollTCPServer:
     def accept_connection(self, sock: socket.socket) -> None:
         connection, address = sock.accept()
         connection.setblocking(False)
-        # print(f"new client: {address}")
+        self.logger.info(f"new client: {address}")
         if not self.poller:
             return
         self.poller.register(connection, select.POLLIN)
@@ -236,6 +240,6 @@ class PollTCPServer:
             conn['data'] += conn['connection'].recv(1024)
             return True
         except Exception as err:
-            print(err)
+            self.logger.warn(err)
             self.remove_connection(conn['connection'])
             return False

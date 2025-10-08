@@ -1,5 +1,6 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
+from hippopytamus.logger.logger import LoggerFactory
 from typing import Dict, Any
 
 
@@ -10,6 +11,7 @@ class SimpleTCPServer:
         self.service = service
         self.host = host
         self.port = port
+        self.logger = LoggerFactory.get_logger()
 
     def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -18,12 +20,12 @@ class SimpleTCPServer:
         sock.bind((self.host, self.port))
 
         sock.listen()
-        print(sock.getsockname())
+        self.logger.info(sock.getsockname())
 
         while True:
             connection, address = sock.accept()
 
-            print(f"new client: {address}")
+            self.logger.info(f"new client: {address}")
             context: Dict[str, Any] = {}
             while True:
                 read = False

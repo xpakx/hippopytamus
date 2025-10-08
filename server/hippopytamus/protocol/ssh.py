@@ -1,8 +1,12 @@
 from hippopytamus.protocol.interface import Protocol, Request, Response
+from hippopytamus.logger.logger import LoggerFactory
 from typing import Dict, Tuple
 
 
 class SSHProtocol(Protocol):
+    def __init__(self) -> None:
+        self.logger = LoggerFactory.get_logger()
+
     def prepare_response(self, response: Request) -> bytes:
         if not isinstance(response, bytes):
             raise Exception("Error")
@@ -10,7 +14,7 @@ class SSHProtocol(Protocol):
 
     def parse_request(self, request: bytes, context: Dict) -> Response:
         if 'payload' in context:
-            print(context['payload'])
+            self.logger.debug(context['payload'])
         if 'read' in context:
             context.pop('read')
         return request
@@ -45,17 +49,17 @@ class SSHProtocol(Protocol):
             context['read'] += len(n)
             buffer = buffer[to_read:]
         else:
-            print(context['length'])
+            self.logger.debug(context['length'])
 
         if context['read'] == 4:
             context['plength'] += buffer[0]
             buffer = buffer[1:]
             context['read'] += 1
         else:
-            print(context['plength'])
+            self.logger.debug(context['plength'])
 
         payload_length = context['length'] - context['plength'] - 1
-        print(payload_length)
+        self.logger.debug(payload_length)
         if context['read'] > 4 and len(context['payload']) < payload_length:
             to_read = payload_length-context['read']+5
             n = buffer[:to_read]
@@ -63,12 +67,12 @@ class SSHProtocol(Protocol):
             context['read'] += len(n)
             buffer = buffer[to_read:]
         else:
-            print(context['payload'])
+            self.logger.debug(context['payload'])
 
-        print("READ", context['read'])
-        print(buffer)
+        self.logger.debug("READ", context['read'])
+        self.logger.debug(buffer)
         if context['read'] > 4 and len(context['payload']) == payload_length:
-            print(payload_length)
+            self.logger.debug(payload_length)
             return buffer, True
 
         return buffer, False

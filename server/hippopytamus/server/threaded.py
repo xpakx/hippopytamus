@@ -1,5 +1,6 @@
 import socket
 from hippopytamus.protocol.interface import Protocol, Servlet
+from hippopytamus.logger.logger import LoggerFactory
 import threading
 from typing import Dict, Any
 
@@ -11,6 +12,7 @@ class ThreadedTCPServer:
         self.service = service
         self.host = host
         self.port = port
+        self.logger = LoggerFactory.get_logger()
 
     def listen(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -18,11 +20,11 @@ class ThreadedTCPServer:
         sock.bind((self.host, self.port))
 
         sock.listen()
-        print(sock.getsockname())
+        self.logger.debug(sock.getsockname())
 
         while True:
             connection, address = sock.accept()
-            print(f"new client: {address}")
+            self.logger.info(f"new client: {address}")
             client = threading.Thread(
                     target=self.thread,
                     args=(connection, address,)

@@ -1,9 +1,13 @@
 import os
 from typing import Optional, Dict, Tuple, cast
 from hippopytamus.protocol.interface import Protocol, Servlet, Request, Response
+from hippopytamus.logger.logger import LoggerFactory
 
 
 class HttpProtocol09(Protocol):
+    def __init__(self) -> None:
+        self.logger = LoggerFactory.get_logger()
+
     def feed_parse(self, buffer: bytes, _: Dict) -> Tuple[bytes, bool]:
         return buffer, True
 
@@ -15,7 +19,7 @@ class HttpProtocol09(Protocol):
     def parse_request(self, request: bytes, context: Dict) -> Optional[Dict]:
         lines = request.split(b"\r\n")
         header = lines[0].split(b" ")
-        print(request)
+        self.logger.debug(request)
         if len(header) < 2:
             return None
         method = header[0].decode('utf-8')
@@ -31,6 +35,9 @@ class HttpProtocol09(Protocol):
 
 class HttpProtocol10(Protocol):
     codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found", 500: b"Internal Server Error"}
+
+    def __init__(self) -> None:
+        self.logger = LoggerFactory.get_logger()
 
     def prepare_response(self, resp: Response) -> bytes:
         if not isinstance(resp, dict):
@@ -81,7 +88,7 @@ class HttpProtocol10(Protocol):
         context = context['data']
         if 'headers' in context and 'Content-Length' in context['headers']:
             context['body'] = request.decode('utf-8')
-        print(context)
+        self.logger.debug(context)
         return context
 
     def feed_parse(self, buffer: bytes, context: dict) -> Tuple[bytes, bool]:
@@ -118,11 +125,14 @@ class HttpProtocol10(Protocol):
 
 
 class HttpService(Servlet):
+    def __init__(self) -> None:
+        self.logger = LoggerFactory.get_logger()
+
     def process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
             raise Exception("Error")
-        print(f"Method: {request['method']}")
-        print(f"Resource: {request['uri']}")
+        self.logger.debug(f"Method: {request['method']}")
+        self.logger.debug(f"Resource: {request['uri']}")
         if request['method'] != "GET":
             return {"code": 501, "body": ""}
         if request['uri'] != "/":
