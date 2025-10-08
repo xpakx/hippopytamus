@@ -72,7 +72,10 @@ class Logger:
         disabled: bool = False
     ) -> None:
         if for_cls:
-            self.caller = f"{for_cls.__module__}.{for_cls.__name__}"
+            if type(for_cls) is str:
+                self.caller = for_cls
+            else:
+                self.caller = f"{for_cls.__module__}.{for_cls.__name__}"
         else:
             self.caller = "<unknown>"
         self.disabled = disabled
@@ -125,7 +128,11 @@ class LoggerFactory:
         if caller_class is None:
             # TODO: unknown sources
             raise Exception("Couldn't determine caller class")
-        name = f"{caller_class.__module__}.{caller_class.__name__}"
+        name = ""
+        if type(for_cls) is str:
+            name = for_cls
+        else:
+            name = f"{caller_class.__module__}.{caller_class.__name__}"
         if name not in cls._loggers:
             cls._loggers[name] = Logger(
                     self_name=self_name,
