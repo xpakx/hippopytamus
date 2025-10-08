@@ -8,6 +8,7 @@ from typing import List, Any
 from types import ModuleType
 from hippopytamus.core.container import HippoContainer
 from hippopytamus.core.extractor import get_class_decorators
+from hippopytamus.logger.logger import LoggerFactory
 from dataclasses import dataclass
 
 
@@ -26,12 +27,13 @@ class HippoApp:
             ) -> None:
         all_classes = self.get_module_classes(module_name)
         components = self.get_components(all_classes)
-        print(components)
+        self.logger = LoggerFactory.get_logger()
+        self.logger.debug(components)
         self.container = HippoContainer()
         for cls in components:
             self.container.register(cls)
         exceptions = self.get_status_exceptions(all_classes)
-        print("EXCEPTIONS:", exceptions)
+        self.logger.debug(f"Loaded exceptions: {exceptions}")
         for cls in exceptions:
             self.container.exceptionManager.register_exception(cls)
         self.server = SelectTCPServer(
@@ -62,7 +64,7 @@ class HippoApp:
                 module = importlib.import_module(module_name)
                 all_classes.extend(self.inspect_module(module))
             except ImportError as e:
-                print(f"Failed to import module {module_name}: {e}")
+                self.logger.warn(f"Failed to import module {module_name}: {e}")
 
         return all_classes
 

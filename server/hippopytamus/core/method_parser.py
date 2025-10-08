@@ -2,6 +2,7 @@ from typing import List
 from typing import Dict, Any, Type, Optional
 from hippopytamus.core.extractor import get_type_name
 from dataclasses import dataclass, field
+from hippopytamus.logger.logger import LoggerFactory
 
 
 @dataclass
@@ -51,6 +52,9 @@ class MethodData:
 
 
 class HippoMethodProcessor:
+    def __init__(self) -> None:
+        self.logger = LoggerFactory.get_logger()
+
     def process_method(self, signature: List, method_data: MethodData) -> None:
         for param_num, param in enumerate(signature):
             if not param:
@@ -76,11 +80,11 @@ class HippoMethodProcessor:
     ) -> None:
         method_name = method_data.methodName
         if dec.get('__decorator__') == "RequestBody":
-            print(f"Found @RequestBody for {method_name} at {param_num}")
+            self.logger.debug(f"Found @RequestBody for {method_name} at {param_num}")
             method_data.bodyParam = param_num
             method_data.bodyParamType = param.get('class')
         elif dec.get('__decorator__') == "PathVariable":
-            print("Found @PathVariable for", method_name, "at", param_num)
+            self.logger.debug(f"Found @PathVariable for {method_name} at {param_num}")
             path_name = dec.get('name')
             if not path_name:
                 path_name = param.get('name')
@@ -92,7 +96,7 @@ class HippoMethodProcessor:
                     "type": param.get('class')
             })
         elif dec.get('__decorator__') == "RequestHeader":
-            print("Found @RequestHeader for", method_name, "at", param_num)
+            self.logger.debug(f"Found @RequestHeader for {method_name} at {param_num}")
             header_name = dec.get('name')
             if not header_name:
                 header_name = param.get('name')
@@ -103,7 +107,7 @@ class HippoMethodProcessor:
                     "type": param.get('class')
             })
         elif dec.get('__decorator__') == "RequestParam":
-            print("Found @RequestParam for", method_name, "at", param_num)
+            self.logger.debug(f"Found @RequestParam for {method_name} at {param_num}")
             rparam_name = dec.get('name')
             if not rparam_name:
                 rparam_name = param.get('name')
@@ -115,7 +119,7 @@ class HippoMethodProcessor:
                     "type": param.get('class')
             })
         else:
-            print("Param", param_num, "in", method_name, "is not annotated")
+            self.logger.debug(f"Param {param_num} in {method_name} is not annotated")
 
     def process_constructor(
             self,

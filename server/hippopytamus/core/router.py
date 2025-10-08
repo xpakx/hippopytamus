@@ -1,8 +1,8 @@
-from hippopytamus.protocol.interface import Request
 from typing import Tuple
 from typing import Dict, Any, Optional
 import re
 from hippopytamus.core.method_parser import RouteData
+from hippopytamus.logger.logger import LoggerFactory
 
 
 class HippoRouter:
@@ -11,6 +11,7 @@ class HippoRouter:
         self.postRoutes: Dict[str, RouteData] = {}
         self.putRoutes: Dict[str, RouteData] = {}
         self.deleteRoutes: Dict[str, RouteData] = {}
+        self.logger = LoggerFactory.get_logger()
 
     def routes_by_method(self, method: str) -> Dict[str, RouteData]:
         if method == 'POST':
@@ -42,11 +43,11 @@ class HippoRouter:
         mapping_meth = request.get('method', 'GET')
         routes = self.routes_by_method(mapping_meth)
         route = routes.get(uri)
-        print(route)
+        self.logger.debug(route)
         pathvars: Dict[str, Any] = {}
         if not route:
             route, pathvars = self.try_find_varroute(routes, uri)
-            print(route, pathvars)
+            self.logger.debug(f"{route} {pathvars}")
         return route, pathvars
 
     # TODO: this is rather primitive temporary solution
@@ -67,6 +68,6 @@ class HippoRouter:
             match = route_regex.match(uri)
             if match:
                 path_vars = match.groupdict()
-                print(path_vars)
+                self.logger.debug(path_vars)
                 return value, path_vars
         return None, {}

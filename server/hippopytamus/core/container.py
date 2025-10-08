@@ -9,6 +9,7 @@ import json
 from hippopytamus.core.method_parser import RouteData, MethodData, DependencyData
 from hippopytamus.core.method_parser import HippoMethodProcessor
 from hippopytamus.core.router import HippoRouter
+from hippopytamus.logger.logger import LoggerFactory
 from dataclasses import dataclass, field
 
 
@@ -25,6 +26,7 @@ class HippoContainer(Servlet):
         self.exceptionManager = HippoExceptionManager()
         self.method_processor = HippoMethodProcessor()
         self.router = HippoRouter()
+        self.logger = LoggerFactory.get_logger()
 
     def register(self, cls: Type) -> None:
         component_name = get_type_name(cls)
@@ -40,7 +42,7 @@ class HippoContainer(Servlet):
 
         for method in metadata:
             method_name = method.get('name', 'unknown')
-            print(len(method.get('signature', [])), 'params in', method_name)
+            self.logger.debug(f"{len(method.get('signature', []))} params in {method_name}")
             signature = method.get('signature', [])
             params_len = len(signature)
 
@@ -59,7 +61,7 @@ class HippoContainer(Servlet):
             else:
                 self.method_processor.process_method(signature, method_data)
 
-            print("DECORATORS:", method['decorators'])
+            self.logger.debug(f"Decorators: {method['decorators']}")
             for annotation in method['decorators']:
                 if annotation['__decorator__'] == "RequestMapping":
                     self.router.register_route(
@@ -68,14 +70,14 @@ class HippoContainer(Servlet):
                             url_prepend
                     )
                 elif annotation['__decorator__'] == "ExceptionHandler":
-                    print("Found @ExceptionHandler in", method_name)
+                    self.logger.debug(f"Found @ExceptionHandler in {method_name}")
                     self.exceptionManager.create_handler(
                             cast(Dict, annotation),
                             method,
                             cls
                     )
 
-        print(class_dependencies)
+        self.logger.debug(class_dependencies)
         # TODO: maybe create components with routes earlier
         self.components[component_name] = ComponentData(
                 component=None,
@@ -92,7 +94,7 @@ class HippoContainer(Servlet):
         query_params = parse_qs(parsed.query)
         uri = parsed.path
         route, pathvars = self.router.get_route(uri, request)
-        print("PROCESSED:", pathvars)
+        self.logger.debug(f"PROCESSED: {pathvars}")
 
         if not route:
             # TODO: use exception manager
@@ -131,7 +133,7 @@ class HippoContainer(Servlet):
                 try:
                     requestBody = json.loads(requestBody)
                 except Exception:
-                    print("Malformed json")
+                    self.logger.error("Malformed json")
         if route.bodyParam is not None:
             params[route.bodyParam] = requestBody
 
@@ -243,9 +245,9 @@ class HippoContainer(Servlet):
         return cast(Dict, resp)
 
     def process_exception(self, e: Union[Exception, str]) -> Dict:
-        print("Error in handler:", repr(e))
+        self.logger.debug(f"Error in handler: {repr(e)}")
         ex_type = get_type_name(type(e)) if type(e) is not str else e
-        print("Exception type:", ex_type)
+        self.logger.debug(f"Exception type: {ex_type}")
         handler = self.exceptionManager.get_exception_handler(ex_type)
         if handler is None:
             return {"code": 500, "body": None}
@@ -254,7 +256,7 @@ class HippoContainer(Servlet):
             try:
                 handler.set_component(self.getComponent(neededComponent))
             except Exception:
-                print("Couldn't create component needed for exception handler")
-        print(handler)
+                self.logger.error("Couldn't create component needed for exception handler")
+        self.logger.debug(f"Handler: {handler}")
         # TODO: create dummy exception if needed
         return handler.transform(e)  # type: ignore

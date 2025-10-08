@@ -3,6 +3,7 @@ from typing import Dict, Optional, Any, cast, Type
 from hippopytamus.core.extractor import (
         get_class_argdecorators, get_type_name
 )
+from hippopytamus.logger.logger import LoggerFactory
 
 
 class HippoExceptionHandler(ABC):
@@ -54,6 +55,7 @@ class HippoExceptionManager:
         self.defaultExceptionHandler: HippoExceptionHandler = HippoDefaultExceptionHandler()
         self.perTypeExceptionHandlers: Dict[str, HippoExceptionHandler] = {}
         # TODO: per controller handler map
+        self.logger = LoggerFactory.get_logger()
 
     def register_exception_handler(self, handler: HippoExceptionHandler) -> None:
         handler_type = handler.get_type()
@@ -69,11 +71,11 @@ class HippoExceptionManager:
         )
 
     def create_handler(self, annotation: Dict, method: Any, component: Any) -> None:
-        print("Creating handler for", annotation)
+        self.logger.debug(f"Creating handler for {annotation}")
         exception_type = annotation.get('type', None)
         type_str = get_type_name(exception_type) if exception_type is not None else None
 
-        print("Method to create handler", method)
+        self.logger.debug(f"Method to create handler {method}")
         method_handler = method.get('method_handle')
         if method_handler is None:
             return
@@ -106,8 +108,8 @@ class HippoExceptionManager:
                 break
         if status_data is None:
             return
-        print(exc_name)
-        print(status_data)
+        self.logger.debug(exc_name)
+        self.logger.debug(status_data)
         code = status_data.get('code', 500)
         body = status_data.get('reason', '')
 
