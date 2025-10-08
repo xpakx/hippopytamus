@@ -7,9 +7,19 @@ import functools
 def with_frame(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
+        self_param = args[0]
+        if self_param.disabled:
+            return
         frame = inspect.currentframe().f_back
         try:
-            return fn(*args, frame=frame, **kwargs)
+            for_method = frame.f_code.co_name
+            for_line = frame.f_lineno
+            return fn(
+                    *args,
+                    for_method=for_method,
+                    for_line=for_line,
+                    **kwargs
+            )
         finally:
             del frame
     return wrapper
@@ -73,47 +83,35 @@ class Logger:
         tag += " " * pad
         return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
 
-    def _log(self, level: str, text: str, frame) -> None:
-        caller_method = frame.f_code.co_name
-        lineno = frame.f_lineno
+    def _log(self, level: str, text: str, for_method, for_line) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         print(
             f"{self._format_level(level)} "
             f"{timestamp} "
             f"{self.COLORS['CLASS']}{self.caller}{self.COLORS['RESET']}."
-            f"{self.COLORS['METHOD']}{caller_method}{self.COLORS['RESET']}"
-            f"{self.COLORS['LINE']}:{lineno}{self.COLORS['RESET']} - {text}"
+            f"{self.COLORS['METHOD']}{for_method}{self.COLORS['RESET']}"
+            f"{self.COLORS['LINE']}:{for_line}{self.COLORS['RESET']} - {text}"
         )
 
     @with_frame
-    def log(self, text: str, frame=None) -> None:
-        if self.disabled:
-            return
-        self._log("LOG", text, frame)
+    def log(self, text: str, for_method=None, for_line=None) -> None:
+        self._log("LOG", text, for_method, for_line)
 
     @with_frame
-    def debug(self, text: str, frame=None):
-        if self.disabled:
-            return
-        self._log("DEBUG", text, frame)
+    def debug(self, text: str, for_method=None, for_line=None):
+        self._log("DEBUG", text, for_method, for_line)
 
     @with_frame
-    def info(self, text: str, frame=None):
-        if self.disabled:
-            return
-        self._log("INFO", text, frame)
+    def info(self, text: str, for_method=None, for_line=None):
+        self._log("INFO", text, for_method, for_line)
 
     @with_frame
-    def warn(self, text: str, frame=None):
-        if self.disabled:
-            return
-        self._log("WARN", text, frame)
+    def warn(self, text: str, for_method=None, for_line=None):
+        self._log("WARN", text, for_method, for_line)
 
     @with_frame
-    def error(self, text: str, frame=None):
-        if self.disabled:
-            return
-        self._log("ERROR", text, frame)
+    def error(self, text: str, for_method=None, for_line=None):
+        self._log("ERROR", text, for_method, for_line)
 
 
 class LoggerFactory:
