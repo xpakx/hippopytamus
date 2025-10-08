@@ -1,16 +1,26 @@
 import inspect
 import datetime
-from typing import Type, Any
+from typing import Type, Any, Union, Optional
+from typing import Callable
 import functools
 
 
-def with_frame(fn):
+# TODO: more args for print methods
+# TODO: context for print methods
+
+
+def with_frame(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs):  # type: ignore
         self_param = args[0]
         if self_param.disabled:
             return
-        frame = inspect.currentframe().f_back
+        frame = inspect.currentframe()
+        if not frame:
+            return
+        frame = frame.f_back
+        if not frame:
+            return
         try:
             for_method = frame.f_code.co_name
             for_line = frame.f_lineno
@@ -25,9 +35,9 @@ def with_frame(fn):
     return wrapper
 
 
-def with_caller(fn):
+def with_caller(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs):  # type: ignore
         sig = inspect.signature(fn)
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -37,7 +47,12 @@ def with_caller(fn):
         if for_cls:
             return fn(*args, **kwargs)
         else:
-            frame = inspect.currentframe().f_back
+            frame = inspect.currentframe()
+            if not frame:
+                return
+            frame = frame.f_back
+            if not frame:
+                return
             try:
                 locals_ = frame.f_locals
                 caller_self = locals_.get(self_name, None)
@@ -68,14 +83,14 @@ class Logger:
         self,
         *,
         self_name: str = "self",
-        for_cls: type = None,
+        for_cls: Optional[Union[Type, str]] = None,
         disabled: bool = False
     ) -> None:
         if for_cls:
             if type(for_cls) is str:
                 self.caller = for_cls
             else:
-                self.caller = f"{for_cls.__module__}.{for_cls.__name__}"
+                self.caller = f"{for_cls.__module__}.{for_cls.__name__}"  # type: ignore
         else:
             self.caller = "<unknown>"
         self.disabled = disabled
@@ -86,7 +101,13 @@ class Logger:
         tag += " " * pad
         return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
 
-    def _log(self, level: str, text: str, for_method, for_line) -> None:
+    def _log(
+        self,
+        level: str,
+        text: str,
+        for_method: Optional[str],
+        for_line: Optional[int]
+    ) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         print(
             f"{self._format_level(level)} "
@@ -97,23 +118,23 @@ class Logger:
         )
 
     @with_frame
-    def log(self, text: str, for_method=None, for_line=None) -> None:
+    def log(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
         self._log("LOG", text, for_method, for_line)
 
     @with_frame
-    def debug(self, text: str, for_method=None, for_line=None):
+    def debug(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
         self._log("DEBUG", text, for_method, for_line)
 
     @with_frame
-    def info(self, text: str, for_method=None, for_line=None):
+    def info(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
         self._log("INFO", text, for_method, for_line)
 
     @with_frame
-    def warn(self, text: str, for_method=None, for_line=None):
+    def warn(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
         self._log("WARN", text, for_method, for_line)
 
     @with_frame
-    def error(self, text: str, for_method=None, for_line=None):
+    def error(self, text: str, for_method: Optional[str] = None, for_line: Optional[int] = None) -> None:
         self._log("ERROR", text, for_method, for_line)
 
 
@@ -123,7 +144,12 @@ class LoggerFactory:
 
     @classmethod
     @with_caller
-    def get_logger(cls, *, self_name: str = "self", for_cls: type = None) -> Logger:
+    def get_logger(
+            cls,
+            *,
+            self_name: str = "self",
+            for_cls: Optional[Union[Type, str]] = None
+    ) -> Logger:
         caller_class = for_cls
         if caller_class is None:
             # TODO: unknown sources
@@ -132,7 +158,7 @@ class LoggerFactory:
         if type(for_cls) is str:
             name = for_cls
         else:
-            name = f"{caller_class.__module__}.{caller_class.__name__}"
+            name = f"{caller_class.__module__}.{caller_class.__name__}"  # type: ignore
         if name not in cls._loggers:
             cls._loggers[name] = Logger(
                     self_name=self_name,
