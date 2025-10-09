@@ -1,17 +1,34 @@
 import inspect
 import datetime
 from typing import Type, Any, Union, Optional
-from typing import Callable
+from typing import Callable, Dict
 import functools
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 
-# TODO: more args for print methods
-# TODO: extract actual printing to separate class for easier change
+@dataclass
+class LogObject:
+    timestamp: datetime.datetime = field(default_factory=datetime.datetime.now)
+    log_level: str = "DEBUG"
+    class_source: Optional[str] = None
+    method_source: Optional[str] = None
+    line_source: Optional[int] = None
+    text: str = ""
+    text_args: Dict = field(default_factory=dict)
+    context: Dict = field(default_factory=dict)
+
+
+class LogPrinter(ABC):
+    @abstractmethod
+    def print(self, obj: LogObject) -> None:
+        """Prints log"""
+        pass
 
 
 def with_frame(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):  # type: ignore
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         self_param = args[0]
         if self_param.disabled:
             return
@@ -37,7 +54,7 @@ def with_frame(fn: Callable) -> Callable:
 
 def with_caller(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):  # type: ignore
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         sig = inspect.signature(fn)
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -66,61 +83,45 @@ def with_caller(fn: Callable) -> Callable:
 
 
 class Logger:
-    COLORS = {
-        "LOG": "\033[94m",
-        "INFO": "\033[92m",
-        "WARN": "\033[93m",
-        "ERROR": "\033[91m",
-        "DEBUG": "\033[96m",
-        "RESET": "\033[0m",
-        "CLASS": "\033[95m",
-        "METHOD": "\033[96m",
-        "LINE": "\033[90m"
-    }
-
     @with_caller
     def __init__(
         self,
+        printer: LogPrinter,
         *,
         self_name: str = "self",
         for_cls: Optional[Union[Type, str]] = None,
-        disabled: bool = False
+        disabled: bool = False,
     ) -> None:
-        if for_cls:
-            if type(for_cls) is str:
+        if for_cls is not None:
+            if isinstance(for_cls, str):
                 self.caller = for_cls
             else:
-                self.caller = f"{for_cls.__module__}.{for_cls.__name__}"  # type: ignore
+                self.caller = f"{for_cls.__module__}.{for_cls.__name__}"
         else:
             self.caller = "<unknown>"
         self.disabled = disabled
-
-    def _format_level(self, level: str) -> str:
-        tag = f"[{level}]"
-        pad = 7 - len(tag)
-        tag += " " * pad
-        return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
+        self.printer = printer
 
     def _log(
         self,
         level: str,
         text: str,
+        args: Any,
         for_method: Optional[str],
         for_line: Optional[int],
         **context: Any
     ) -> None:
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        ctx_str = ""
-        if context is not None and len(context) > 0:
-            ctx_str = " (" + ", ".join(f"{k}={v!r}" for k, v in context.items()) + ")"
-        print(
-            f"{self._format_level(level)} "
-            f"{timestamp} "
-            f"{self.COLORS['CLASS']}{self.caller}{self.COLORS['RESET']}."
-            f"{self.COLORS['METHOD']}{for_method}{self.COLORS['RESET']}"
-            f"{self.COLORS['LINE']}:{for_line}{self.COLORS['RESET']} - "
-            f"{text}{ctx_str}"
+        logObj = LogObject(
+                timestamp=datetime.datetime.now(),
+                log_level=level,
+                class_source=self.caller,
+                method_source=for_method,
+                line_source=for_line,
+                text=text,
+                text_args=args,
+                context=context,
         )
+        self.printer.print(logObj)
 
     @with_frame
     def log(
@@ -131,7 +132,7 @@ class Logger:
             for_line: Optional[int] = None,
             **context: Any
     ) -> None:
-        self._log("LOG", text, for_method, for_line, **context)
+        self._log("LOG", text, args, for_method, for_line, **context)
 
     @with_frame
     def debug(
@@ -142,7 +143,7 @@ class Logger:
             for_line: Optional[int] = None,
             **context: Any
     ) -> None:
-        self._log("DEBUG", text, for_method, for_line, **context)
+        self._log("DEBUG", text, args, for_method, for_line, **context)
 
     @with_frame
     def info(
@@ -153,7 +154,7 @@ class Logger:
             for_line: Optional[int] = None,
             **context: Any
     ) -> None:
-        self._log("INFO", text, for_method, for_line, **context)
+        self._log("INFO", text, args, for_method, for_line, **context)
 
     @with_frame
     def warn(
@@ -164,7 +165,7 @@ class Logger:
             for_line: Optional[int] = None,
             **context: Any
     ) -> None:
-        self._log("WARN", text, for_method, for_line, **context)
+        self._log("WARN", text, args, for_method, for_line, **context)
 
     @with_frame
     def error(
@@ -175,12 +176,13 @@ class Logger:
             for_line: Optional[int] = None,
             **context: Any
     ) -> None:
-        self._log("ERROR", text, for_method, for_line, **context)
+        self._log("ERROR", text, args, for_method, for_line, **context)
 
 
 class LoggerFactory:
     _loggers: dict[str, Logger] = {}
     _disabled: bool = False
+    _printer: Optional[LogPrinter] = None
 
     @classmethod
     @with_caller
@@ -195,12 +197,13 @@ class LoggerFactory:
             # TODO: unknown sources
             raise Exception("Couldn't determine caller class")
         name = ""
-        if type(for_cls) is str:
-            name = for_cls
+        if isinstance(caller_class, str):
+            name = caller_class
         else:
-            name = f"{caller_class.__module__}.{caller_class.__name__}"  # type: ignore
+            name = f"{caller_class.__module__}.{caller_class.__name__}"
         if name not in cls._loggers:
             cls._loggers[name] = Logger(
+                    cls.get_printer(),
                     self_name=self_name,
                     for_cls=caller_class,
                     disabled=cls._disabled
@@ -232,3 +235,44 @@ class LoggerFactory:
         logger = cls._loggers.get(name)
         if logger:
             logger.disabled = False
+
+    @classmethod
+    def get_printer(cls) -> LogPrinter:
+        if cls._printer is None:
+            cls._printer = BasicConsolePrinter()
+        return cls._printer
+
+
+# TODO: more args for print methods
+class BasicConsolePrinter(LogPrinter):
+    COLORS = {
+        "LOG": "\033[94m",
+        "INFO": "\033[92m",
+        "WARN": "\033[93m",
+        "ERROR": "\033[91m",
+        "DEBUG": "\033[96m",
+        "RESET": "\033[0m",
+        "CLASS": "\033[95m",
+        "METHOD": "\033[96m",
+        "LINE": "\033[90m"
+    }
+
+    def _format_level(self, level: str) -> str:
+        tag = f"[{level}]"
+        pad = 7 - len(tag)
+        tag += " " * pad
+        return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
+
+    def print(self, obj: LogObject) -> None:
+        timestamp = obj.timestamp.strftime("%H:%M:%S")
+        ctx_str = ""
+        if obj.context is not None and len(obj.context) > 0:
+            ctx_str = " (" + ", ".join(f"{k}={v!r}" for k, v in obj.context.items()) + ")"
+        print(
+            f"{self._format_level(obj.log_level)} "
+            f"{timestamp} "
+            f"{self.COLORS['CLASS']}{obj.class_source}{self.COLORS['RESET']}."
+            f"{self.COLORS['METHOD']}{obj.method_source}{self.COLORS['RESET']}"
+            f"{self.COLORS['LINE']}:{obj.line_source}{self.COLORS['RESET']} - "
+            f"{obj.text}{ctx_str}"
+        )
