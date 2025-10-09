@@ -5,6 +5,7 @@ from typing import Callable, Dict
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import sys
 
 
 @dataclass
@@ -257,22 +258,46 @@ class BasicConsolePrinter(LogPrinter):
         "LINE": "\033[90m"
     }
 
+    def __init__(self, stream=sys.stdout) -> None:
+        self.stream = stream
+        self.enable_colors = stream.isatty()
+
     def _format_level(self, level: str) -> str:
         tag = f"[{level}]"
         pad = 7 - len(tag)
         tag += " " * pad
-        return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
+        if self.enable_colors:
+            return f"{self.COLORS[level]}{tag}{self.COLORS['RESET']}"
+        else:
+            return tag
+
+    def _format_class(self, class_name: str) -> str:
+        if not self.enable_colors:
+            return class_name
+        return f"{self.COLORS['CLASS']}{class_name}{self.COLORS['RESET']}"
+
+    def _format_method(self, method_name: str) -> str:
+        if not self.enable_colors:
+            return method_name
+        return f"{self.COLORS['METHOD']}{method_name}{self.COLORS['RESET']}"
+
+    def _format_line(self, lineno: int) -> str:
+        if not self.enable_colors:
+            return f":{lineno}"
+        return f"{self.COLORS['LINE']}:{lineno}{self.COLORS['RESET']}"
 
     def print(self, obj: LogObject) -> None:
         timestamp = obj.timestamp.strftime("%H:%M:%S")
         ctx_str = ""
         if obj.context is not None and len(obj.context) > 0:
             ctx_str = " (" + ", ".join(f"{k}={v!r}" for k, v in obj.context.items()) + ")"
+
+        level = self._format_level(obj.log_level)
+        cls = self._format_class(obj.class_source)
+        method = self._format_method(obj.method_source)
+        line = self._format_line(obj.line_source)
+
         print(
-            f"{self._format_level(obj.log_level)} "
-            f"{timestamp} "
-            f"{self.COLORS['CLASS']}{obj.class_source}{self.COLORS['RESET']}."
-            f"{self.COLORS['METHOD']}{obj.method_source}{self.COLORS['RESET']}"
-            f"{self.COLORS['LINE']}:{obj.line_source}{self.COLORS['RESET']} - "
-            f"{obj.text}{ctx_str}"
+            f"{level} {timestamp} {cls}.{method}{line} - {obj.text}{ctx_str}",
+            file=self.stream
         )
