@@ -1,7 +1,7 @@
 import inspect
 import datetime
 from typing import Type, Any, Union, Optional
-from typing import Callable, Dict
+from typing import Callable, Dict, TextIO
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -258,7 +258,7 @@ class BasicConsolePrinter(LogPrinter):
         "LINE": "\033[90m"
     }
 
-    def __init__(self, stream=sys.stdout) -> None:
+    def __init__(self, stream: TextIO = sys.stdout) -> None:
         self.stream = stream
         self.enable_colors = stream.isatty()
 
@@ -271,17 +271,23 @@ class BasicConsolePrinter(LogPrinter):
         else:
             return tag
 
-    def _format_class(self, class_name: str) -> str:
+    def _format_class(self, class_name: str | None) -> str:
+        if class_name is None:
+            class_name = "<unknown>"
         if not self.enable_colors:
             return class_name
         return f"{self.COLORS['CLASS']}{class_name}{self.COLORS['RESET']}"
 
-    def _format_method(self, method_name: str) -> str:
+    def _format_method(self, method_name: str | None) -> str:
+        if method_name is None:
+            method_name = "<unknown>"
         if not self.enable_colors:
             return method_name
         return f"{self.COLORS['METHOD']}{method_name}{self.COLORS['RESET']}"
 
-    def _format_line(self, lineno: int) -> str:
+    def _format_line(self, lineno: int | None) -> str:
+        if lineno is None:
+            return ""
         if not self.enable_colors:
             return f":{lineno}"
         return f"{self.COLORS['LINE']}:{lineno}{self.COLORS['RESET']}"
