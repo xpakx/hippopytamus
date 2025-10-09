@@ -37,9 +37,9 @@ class Dummy2:
 def test_printer():
     printer = TestPrinter()
     printer.post_init()
-    LoggerFactory._printer = printer
-    LoggerFactory._loggers.clear()
-    LoggerFactory._disabled = False
+    LoggerFactory._factory = None
+    factory = LoggerFactory.get_factory()
+    factory.set_printer(printer)
     return printer
 
 
@@ -94,11 +94,12 @@ def test_class_and_method_names_from_factory(test_printer):
 def test_disable_enable_all(test_printer, logger):
     obj = Dummy(logger)
 
-    LoggerFactory.disable_all()
+    factory = LoggerFactory.get_factory()
+    factory.disable_all()
     obj.action()
     assert len(test_printer.logged) == 0
 
-    LoggerFactory.enable_all()
+    factory.enable_all()
     obj.action()
     assert len(test_printer.logged) == 5
 
@@ -106,10 +107,11 @@ def test_disable_enable_all(test_printer, logger):
 def test_disable_enable_for_class(test_printer, logger):
     obj = Dummy(logger)
 
-    LoggerFactory.disable_for(Dummy)
+    factory = LoggerFactory.get_factory()
+    factory.disable_for(Dummy)
     obj.action()
     assert len(test_printer.logged) == 0
 
-    LoggerFactory.enable_for(Dummy)
+    factory.enable_for(Dummy)
     obj.action()
     assert len(test_printer.logged) == 5
