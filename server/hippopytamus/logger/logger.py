@@ -1,7 +1,7 @@
 import inspect
 import datetime
 from typing import Type, Any, Union, Optional
-from typing import Callable, Dict, TextIO
+from typing import Callable, Dict, TextIO, Self
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -181,11 +181,14 @@ class Logger:
 
 
 class LoggerFactory:
-    _loggers: dict[str, Logger] = {}
-    _disabled: bool = False
-    _printer: Optional[LogPrinter] = None
-    _whitelist: set[str] = set()
-    _blacklist: set[str] = set()
+    _factory: Optional["LoggerFactory"] = None
+
+    def __init__(self) -> None:
+        self.loggers: dict[str, Logger] = {}
+        self.disabled: bool = False
+        self.printer: Optional[LogPrinter] = None
+        self.whitelist: set[str] = set()
+        self.blacklist: set[str] = set()
 
     @classmethod
     @with_caller
@@ -204,57 +207,67 @@ class LoggerFactory:
             name = caller_class
         else:
             name = f"{caller_class.__module__}.{caller_class.__name__}"
-        disabled = cls._disabled
-        if name in cls._blacklist:
+        factory = cls.get_factory()
+        disabled = factory.disabled
+        if name in factory.blacklist:
             disabled = True
-        if name in cls._whitelist:
+        if name in factory.whitelist:
             disabled = False
-        if name not in cls._loggers:
-            cls._loggers[name] = Logger(
-                    cls.get_printer(),
+        if name not in factory.loggers:
+            factory.loggers[name] = Logger(
+                    factory._get_printer(),
                     self_name=self_name,
                     for_cls=caller_class,
                     disabled=disabled
             )
-        return cls._loggers[name]
+        return factory.loggers[name]
 
     @classmethod
-    def disable_all(cls) -> None:
-        cls._disabled = True
-        for logger in cls._loggers.values():
+    def get_factory(cls) -> "LoggerFactory":
+        if cls._factory:
+            return cls._factory
+        factory = LoggerFactory()
+        cls._factory = factory
+        return factory
+
+    def disable_all(self) -> None:
+        self.disabled = True
+        for logger in self.loggers.values():
             logger.disabled = True
 
-    @classmethod
-    def enable_all(cls) -> None:
-        cls._disabled = False
-        for logger in cls._loggers.values():
+    def enable_all(self) -> None:
+        self.disabled = False
+        for logger in self.loggers.values():
             logger.disabled = False
 
-    @classmethod
-    def disable_for(cls, class_type: Type[Any]) -> None:
+    def disable_for(self, class_type: Type[Any]) -> None:
         name = f"{class_type.__module__}.{class_type.__name__}"
-        logger = cls._loggers.get(name)
+        logger = self.loggers.get(name)
         if logger:
             logger.disabled = True
-        cls._blacklist.add(name)
-        if name in cls._whitelist:
-            cls._whitelist.remove(name)
+        self.blacklist.add(name)
+        if name in self.whitelist:
+            self.whitelist.remove(name)
 
-    @classmethod
-    def enable_for(cls, class_type: Type[Any]) -> None:
+    def enable_for(self, class_type: Type[Any]) -> None:
         name = f"{class_type.__module__}.{class_type.__name__}"
-        logger = cls._loggers.get(name)
+        logger = self.loggers.get(name)
         if logger:
             logger.disabled = False
-        cls._whitelist.add(name)
-        if name in cls._blacklist:
-            cls._blacklist.remove(name)
+        self.whitelist.add(name)
+        if name in self.blacklist:
+            self.blacklist.remove(name)
 
-    @classmethod
-    def get_printer(cls) -> LogPrinter:
-        if cls._printer is None:
-            cls._printer = BasicConsolePrinter()
-        return cls._printer
+    def _get_printer(self) -> LogPrinter:
+        if self.printer is None:
+            self.printer = BasicConsolePrinter()
+        return self.printer
+
+    def get_printer(self) -> LogPrinter | None:
+        return self.printer
+
+    def set_printer(self, printer: LogPrinter) -> None:
+        self.printer = printer
 
 
 # TODO: more args for print methods
