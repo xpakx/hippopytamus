@@ -184,6 +184,8 @@ class LoggerFactory:
     _loggers: dict[str, Logger] = {}
     _disabled: bool = False
     _printer: Optional[LogPrinter] = None
+    _whitelist: set[str] = set()
+    _blacklist: set[str] = set()
 
     @classmethod
     @with_caller
@@ -202,12 +204,17 @@ class LoggerFactory:
             name = caller_class
         else:
             name = f"{caller_class.__module__}.{caller_class.__name__}"
+        disabled = cls._disabled
+        if name in cls._blacklist:
+            disabled = True
+        if name in cls._whitelist:
+            disabled = False
         if name not in cls._loggers:
             cls._loggers[name] = Logger(
                     cls.get_printer(),
                     self_name=self_name,
                     for_cls=caller_class,
-                    disabled=cls._disabled
+                    disabled=disabled
             )
         return cls._loggers[name]
 
@@ -229,6 +236,9 @@ class LoggerFactory:
         logger = cls._loggers.get(name)
         if logger:
             logger.disabled = True
+        cls._blacklist.add(name)
+        if name in cls._whitelist:
+            cls._whitelist.remove(name)
 
     @classmethod
     def enable_for(cls, class_type: Type[Any]) -> None:
@@ -236,6 +246,9 @@ class LoggerFactory:
         logger = cls._loggers.get(name)
         if logger:
             logger.disabled = False
+        cls._whitelist.add(name)
+        if name in cls._blacklist:
+            cls._blacklist.remove(name)
 
     @classmethod
     def get_printer(cls) -> LogPrinter:
