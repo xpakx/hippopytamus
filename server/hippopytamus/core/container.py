@@ -32,7 +32,7 @@ class HippoContainer(Servlet):
         component_name = get_type_name(cls)
         metadata = get_class_data(cls)
         class_decorators = get_class_argdecorators(cls)
-        class_mark_decorators = get_class_decorators(cls)
+        class_markers = get_class_decorators(cls)
         url_prepend = None
         advice = False
         for dec in class_decorators:
@@ -40,8 +40,8 @@ class HippoContainer(Servlet):
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
-        for dec in class_mark_decorators:
-            if dec == "ControllerAdvice":
+        for marker in class_markers:
+            if marker == "ControllerAdvice":
                 advice = True
         class_dependencies: List[DependencyData] = []
 

@@ -79,11 +79,12 @@ class HippoExceptionManager:
         self.localHandlers[class_name][handler_type] = handler
 
     def get_exception_handler(self, name: str, cls_name: Optional[str]) -> HippoExceptionHandler:
-        localHandlers = self.localHandlers.get(cls_name)
-        if localHandlers is not None:
-            localHandler = localHandlers.get(name)
-            if localHandler is not None:
-                return localHandler
+        if cls_name is not None:
+            localHandlers = self.localHandlers.get(cls_name)
+            if localHandlers is not None:
+                localHandler = localHandlers.get(name)
+                if localHandler is not None:
+                    return localHandler
         return self.perTypeExceptionHandlers.get(
                 name,
                 self.defaultExceptionHandler
