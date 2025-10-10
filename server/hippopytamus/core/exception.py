@@ -4,6 +4,7 @@ from hippopytamus.core.extractor import (
         get_class_argdecorators, get_type_name
 )
 from hippopytamus.logger.logger import LoggerFactory
+from hippopytamus.core.extractor import get_type_name
 import inspect
 
 
@@ -55,7 +56,9 @@ class HippoExceptionManager:
     def __init__(self) -> None:
         self.defaultExceptionHandler: HippoExceptionHandler = HippoDefaultExceptionHandler()
         self.perTypeExceptionHandlers: Dict[str, HippoExceptionHandler] = {}
-        # TODO: per controller handler map
+
+        self.perControllerLocalHandlers: Dict[str, HippoExceptionHandler] = {}
+        self.localHandlers: Dict[str, Dict[str, HippoExceptionHandler]] = {}
         self.logger = LoggerFactory.get_logger()
 
     def register_exception_handler(self, handler: HippoExceptionHandler) -> None:
@@ -65,13 +68,28 @@ class HippoExceptionManager:
             return
         self.perTypeExceptionHandlers[handler_type] = handler
 
-    def get_exception_handler(self, name: str) -> HippoExceptionHandler:
+    def register_exception_handler_for(self, handler: HippoExceptionHandler, cls: Type) -> None:
+        handler_type = handler.get_type()
+        class_name = get_type_name(cls)
+        if handler_type is None:
+            self.perControllerLocalHandlers[class_name] = handler
+            return
+        if self.localHandlers.get(class_name) is None:
+            self.localHandlers[class_name] = {}
+        self.localHandlers[class_name][handler_type] = handler
+
+    def get_exception_handler(self, name: str, cls_name: Optional[str]) -> HippoExceptionHandler:
+        localHandlers = self.localHandlers.get(cls_name)
+        if localHandlers is not None:
+            localHandler = localHandlers.get(name)
+            if localHandler is not None:
+                return localHandler
         return self.perTypeExceptionHandlers.get(
                 name,
                 self.defaultExceptionHandler
         )
 
-    def create_handler(self, annotation: Dict, method: Any, component: Any) -> None:
+    def create_handler(self, annotation: Dict, method: Any, component: Any, advice: bool) -> None:
         self.logger.debug(f"Creating handler for {annotation}")
         exception_type = annotation.get('type', None)
         type_str = get_type_name(exception_type) if exception_type is not None else None
@@ -127,7 +145,11 @@ class HippoExceptionManager:
 
             def set_component(self, comp: Any) -> None:
                 self.component = comp
-        self.register_exception_handler(MethodHandler())
+
+        if advice:
+            self.register_exception_handler(MethodHandler())
+        else:
+            self.register_exception_handler_for(MethodHandler(), component)
 
     def register_exception(self, cls: Type[Exception]) -> None:
         exc_name = get_type_name(cls)
@@ -164,5 +186,3 @@ class HippoExceptionManager:
             def set_component(self, comp: Any) -> None:
                 pass
         self.register_exception_handler(MethodHandler())
-
-# TODO: @ControllerAdvice

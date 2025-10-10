@@ -2,7 +2,7 @@ from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
-from hippopytamus.core.extractor import get_type_name
+from hippopytamus.core.extractor import get_type_name, get_class_decorators
 from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
@@ -32,12 +32,17 @@ class HippoContainer(Servlet):
         component_name = get_type_name(cls)
         metadata = get_class_data(cls)
         class_decorators = get_class_argdecorators(cls)
+        class_mark_decorators = get_class_decorators(cls)
         url_prepend = None
+        advice = False
         for dec in class_decorators:
             if dec['__decorator__'] == "RequestMapping":
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
+        for dec in class_mark_decorators:
+            if dec == "ControllerAdvice":
+                advice = True
         class_dependencies: List[DependencyData] = []
 
         for method in metadata:
@@ -74,7 +79,8 @@ class HippoContainer(Servlet):
                     self.exceptionManager.create_handler(
                             cast(Dict, annotation),
                             method,
-                            cls
+                            cls,
+                            advice
                     )
 
         self.logger.debug(class_dependencies)
@@ -119,7 +125,7 @@ class HippoContainer(Servlet):
             resp = route.method(component, *params)
             return self.transform_response(resp)
         except Exception as e:
-            return self.process_exception(e)
+            return self.process_exception(e, component_name)
 
         return {}
 
@@ -244,11 +250,11 @@ class HippoContainer(Servlet):
                     }
         return cast(Dict, resp)
 
-    def process_exception(self, e: Union[Exception, str]) -> Dict:
+    def process_exception(self, e: Union[Exception, str], cls: Optional[str]) -> Dict:
         self.logger.debug(f"Error in handler: {repr(e)}")
         ex_type = get_type_name(type(e)) if type(e) is not str else e
         self.logger.debug(f"Exception type: {ex_type}")
-        handler = self.exceptionManager.get_exception_handler(ex_type)
+        handler = self.exceptionManager.get_exception_handler(ex_type, cls)
         if handler is None:
             return {"code": 500, "body": None}
         neededComponent = handler.get_component()
