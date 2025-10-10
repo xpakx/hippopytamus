@@ -80,15 +80,34 @@ class HippoExceptionManager:
         if method_handler is None:
             return
 
+        status_data = None
+        status_code = None
+        status_body = None
+        for dec in method['decorators']:
+            dec_name = dec.get('__decorator__')
+            if dec_name == "ResponseStatus":
+                status_data = dec
+                break
+        if status_data is not None:
+            status_code = status_data.get('code', 500)
+            status_body = bytes(status_data.get('reason', ''), "utf-8")
+
         class MethodHandler(HippoExceptionHandler):
             def __init__(self) -> None:
                 self.component = None
+                self.code = status_code
+                self.body = status_body
 
             def get_type(self) -> Optional[str]:
                 return type_str
 
             def transform(self, exception: Exception) -> Dict:
-                return cast(Dict, method_handler(self.component, exception))
+                transformed = cast(Dict, method_handler(self.component, exception))
+                if self.code is not None:
+                    transformed['code'] = self.code
+                if self.body is not None:
+                    transformed['body'] = self.body
+                return transformed
 
             def get_component(self) -> Optional[str]:
                 return cast(str, component.__name__)
