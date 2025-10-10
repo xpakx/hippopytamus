@@ -259,4 +259,7 @@ class HippoContainer(Servlet):
                 self.logger.error("Couldn't create component needed for exception handler")
         self.logger.debug(f"Handler: {handler}")
         # TODO: create dummy exception if needed
-        return handler.transform(e)  # type: ignore
+        transformed = handler.transform(e)  # type: ignore
+        if type(transformed['body']) is str:
+            transformed['body'] = bytes(transformed['body'], "utf-8")
+        return transformed
