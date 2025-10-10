@@ -36,3 +36,41 @@ def test_server_works_after_exception(client: TestClient):
     resp = client.get("/exception")
 
     assert resp.code == 404
+
+
+def test_response_reason_annotation_on_exception(client: TestClient):
+    resp = client.get("/exception2")
+
+    assert resp.code == 404
+    assert resp.body == 'Test Not Found'
+
+
+@pytest.mark.skip(reason="Not implemented")
+def test_controller_exception_handler_without_body(client: TestClient):
+    resp = client.get("/exception3")
+
+    assert resp.code == 400
+    assert resp.body == ''
+
+
+@pytest.mark.skip(reason="Not implemented")
+def test_controller_exception_handler_with_dict_return(client: TestClient):
+    resp = client.get("/exception4")
+
+    assert resp.code == 404
+    assert resp.body == "Error 4"
+
+
+@pytest.mark.skip(reason="Not implemented")
+def test_global_exception_handler_from_advice(client: TestClient):
+    resp = client.get("/exception5")
+
+    assert resp.code == 400
+    assert resp.body == "From Advice"
+
+
+@pytest.mark.skip(reason="Not implemented")
+def test_handlers_are_local(client: TestClient):
+    resp = client.get("/another_exception")
+
+    assert resp.code == 500
