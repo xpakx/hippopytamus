@@ -34,7 +34,13 @@ class HttpProtocol09(Protocol):
 
 
 class HttpProtocol10(Protocol):
-    codes = {200: b"OK", 501: b"Not Implemented", 404: b"Not Found", 500: b"Internal Server Error"}
+    codes = {
+            200: b"OK",
+            400: b"Bad Request",
+            404: b"Not Found",
+            500: b"Internal Server Error",
+            501: b"Not Implemented",
+    }
 
     def __init__(self) -> None:
         self.logger = LoggerFactory.get_logger()

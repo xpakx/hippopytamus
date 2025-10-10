@@ -4,6 +4,7 @@ from hippopytamus.core.extractor import (
         get_class_argdecorators, get_type_name
 )
 from hippopytamus.logger.logger import LoggerFactory
+import inspect
 
 
 class HippoExceptionHandler(ABC):
@@ -80,6 +81,10 @@ class HippoExceptionManager:
         if method_handler is None:
             return
 
+        handler_sig = inspect.signature(method_handler)
+        handler_params = handler_sig.parameters
+        handler_param_count = len(handler_params)
+
         status_data = None
         status_code = None
         status_body = None
@@ -97,17 +102,25 @@ class HippoExceptionManager:
                 self.component = None
                 self.code = status_code
                 self.body = status_body
+                self.params = handler_param_count
 
             def get_type(self) -> Optional[str]:
                 return type_str
 
             def transform(self, exception: Exception) -> Dict:
-                transformed = cast(Dict, method_handler(self.component, exception))
+                transformed = None
+                # TODO: improve that once potential params are determined
+                if self.params == 1:
+                    transformed = method_handler(self.component)
+                else:
+                    transformed = method_handler(self.component, exception)
+                if transformed is None:
+                    transformed = {}
                 if self.code is not None:
                     transformed['code'] = self.code
                 if self.body is not None:
                     transformed['body'] = self.body
-                return transformed
+                return cast(Dict, transformed)
 
             def get_component(self) -> Optional[str]:
                 return cast(str, component.__name__)
