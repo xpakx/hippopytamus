@@ -19,19 +19,30 @@ class TestClient:
         self.host = host
         self.port = port
 
-    def do_connect(self, host: str, port: int) -> None:
+    def try_connect(self) -> bool:
+        start = time.time()
+        while True:
+            try:
+                self.client.connect((self.host, self.port))
+                break
+            except (ConnectionRefusedError, socket.timeout, ConnectionAbortedError):
+                if time.time() - start > 5:
+                    raise TimeoutError(f"Could not connect to {self.host}:{self.port}")
+                time.sleep(0.05)
+
+    def do_connect(self) -> None:
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.settimeout(2)
         if not self.once_connected:
-            time.sleep(0.5)  # TODO
-        self.client.connect((host, port))
+            self.try_connect()
+        self.client.connect((self.host, self.port))
         self.once_connected = True
 
     def close(self) -> None:
         self.client.close()
 
     def send(self, method: str, uri: str, body=None, headers=None):
-        self.do_connect(self.host, self.port)
+        self.do_connect()
         self.client.sendall(make_request_bytes(method, uri, body=body, headers=headers))
         status, headers, resp_body = parse_http_response(self.client.recv(8192))
         code = int(status.split()[1])  # TODO: errors
