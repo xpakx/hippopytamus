@@ -1,7 +1,7 @@
 import inspect
 import datetime
 from typing import Type, Any, Union, Optional
-from typing import Callable, Dict, TextIO, Self
+from typing import Callable, Dict, TextIO
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

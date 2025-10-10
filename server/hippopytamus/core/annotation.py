@@ -244,7 +244,7 @@ def get_status_wrapper(code: int = 500, reason: str = "") -> Callable[[Callable]
                 return func(*args, **kwargs)
             hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
             hippo_wrapper.__hippo_decorator = {
-                    "__decorator__": "RequestMapping",
+                    "__decorator__": "ResponseStatus",
                     "code": code,
                     "reason": reason,
                 }
@@ -259,3 +259,14 @@ def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
         return wrapper(func)  # type: ignore
     else:
         return get_status_wrapper(code, reason)
+
+
+# TODO
+def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
+    if not hasattr(cls, "__hippo_decorators"):
+        cls.__hippo_decorators = []
+    if not hasattr(cls, "__hippo_argdecorators"):
+        cls.__hippo_argdecorators = []
+    cls.__hippo_decorators.append("Component")
+    cls.__hippo_decorators.append("ControllerAdvice")
+    return cast(HippoDecoratorClass, cls)
