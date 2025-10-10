@@ -111,7 +111,7 @@ class HippoExceptionManager:
         self.logger.debug(exc_name)
         self.logger.debug(status_data)
         code = status_data.get('code', 500)
-        body = status_data.get('reason', '')
+        body = bytes(status_data.get('reason', ''), "utf-8")
 
         class MethodHandler(HippoExceptionHandler):
             def __init__(self) -> None:
