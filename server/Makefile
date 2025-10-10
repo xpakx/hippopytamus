@@ -1,4 +1,4 @@
-.PHONY: run example1 mypy test
+.PHONY: run example1 example2 example3 mypy test
 
 all: run
 
@@ -10,6 +10,9 @@ example1:
 
 example2:
 	uv run hippopytamus/example/example2/main.py
+
+example3:
+	uv run hippopytamus/example/example3/main.py
 
 mypy:
 	uvx mypy hippopytamus/
