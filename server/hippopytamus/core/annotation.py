@@ -5,6 +5,7 @@ from typing import Callable, _SpecialForm
 from typing import TypeVar
 import inspect
 import functools
+from hippopytamus.core.filter import HippoFilter
 
 
 T = TypeVar("T")
@@ -269,4 +270,16 @@ def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
         cls.__hippo_argdecorators = []
     cls.__hippo_decorators.append("Component")
     cls.__hippo_decorators.append("ControllerAdvice")
+    return cast(HippoDecoratorClass, cls)
+
+
+def Filter(cls: Type) -> HippoDecoratorClass:
+    if not isinstance(cls, HippoFilter):
+        raise Exception("Filter must implement HippoFilter interface")
+    if not hasattr(cls, "__hippo_decorators"):
+        cls.__hippo_decorators = []
+    if not hasattr(cls, "__hippo_argdecorators"):
+        cls.__hippo_argdecorators = []
+    cls.__hippo_decorators.append("Filter")
+    cls.__hippo_decorators.append("Component")
     return cast(HippoDecoratorClass, cls)
