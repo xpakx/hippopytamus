@@ -84,6 +84,9 @@ class HippoContainer(Servlet):
                     )
 
         self.logger.debug(class_dependencies)
+        if self.components.get(component_name) is not None:
+            self.logger.warn(f"Component {component_name} already registered! Overwriting.")
+
         # TODO: maybe create components with routes earlier
         self.components[component_name] = ComponentData(
                 component=None,
