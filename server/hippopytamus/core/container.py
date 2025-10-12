@@ -20,6 +20,15 @@ class ComponentData:
     dependencies: List[DependencyData] = field(default_factory=list)
 
 
+@dataclass
+class ClassData:
+    name: str = ""
+    advice: bool = False
+    filter: bool = False
+    dependencies: List[DependencyData] = field(default_factory=list)
+    methods: List[Any] = field(default_factory=list)
+
+
 class HippoContainer(Servlet):
     def __init__(self) -> None:
         self.components: Dict[str, ComponentData] = {}
@@ -29,13 +38,12 @@ class HippoContainer(Servlet):
         self.logger = LoggerFactory.get_logger()
 
     def register(self, cls: Type) -> None:
-        component_name = get_type_name(cls)
-        metadata = get_class_data(cls)
+        class_data = ClassData()
+        class_data.name = get_type_name(cls)
+        class_data.methods = get_class_data(cls)  # TODO: separate constructor
         class_decorators = get_class_argdecorators(cls)
         class_markers = get_class_decorators(cls)
         url_prepend = None
-        advice = False
-        filter = False
         for dec in class_decorators:
             if dec['__decorator__'] == "RequestMapping":
                 paths = dec['path']
@@ -43,19 +51,18 @@ class HippoContainer(Servlet):
                     url_prepend = paths[0]  # TODO: multiple paths?
         for marker in class_markers:
             if marker == "ControllerAdvice":
-                advice = True
+                class_data.advice = True
             if marker == "Filter":
-                filter = True
-        class_dependencies: List[DependencyData] = []
+                class_data.filter = True
 
-        for method in metadata:
+        for method in class_data.methods:
             method_name = method.get('name', 'unknown')
             self.logger.debug(f"{len(method.get('signature', []))} params in {method_name}")
             signature = method.get('signature', [])
             params_len = len(signature)
 
             method_data = MethodData(
-                    component=component_name,
+                    component=class_data.name,
                     methodName=method_name,
                     method=method['method_handle'],
                     paramLen=params_len,
@@ -64,7 +71,7 @@ class HippoContainer(Servlet):
             if method_name == "__init__":
                 self.method_processor.process_constructor(
                         signature,
-                        class_dependencies
+                        class_data.dependencies
                 )
             else:
                 self.method_processor.process_method(signature, method_data)
@@ -83,21 +90,21 @@ class HippoContainer(Servlet):
                             cast(Dict, annotation),
                             method,
                             cls,
-                            advice
+                            class_data.advice
                     )
 
-        if filter:
+        if class_data.filter:
             # TODO: register filter
             pass
 
-        self.logger.debug(class_dependencies)
-        if self.components.get(component_name) is not None:
-            self.logger.warn(f"Component {component_name} already registered! Overwriting.")
+        self.logger.debug(class_data.dependencies)
+        if self.components.get(class_data.name) is not None:
+            self.logger.warn(f"Component {class_data.name} already registered! Overwriting.")
 
-        self.components[component_name] = ComponentData(
+        self.components[class_data.name] = ComponentData(
                 component=None,
                 componentClass=cls,
-                dependencies=class_dependencies,
+                dependencies=class_data.dependencies,
         )
 
     def process_request(self, request: Request) -> Response:

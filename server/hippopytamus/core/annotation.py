@@ -277,9 +277,9 @@ def Filter(cls: Type) -> HippoDecoratorClass:
     if not issubclass(cls, HippoFilter):
         raise Exception("Filter must implement HippoFilter interface")
     if not hasattr(cls, "__hippo_decorators"):
-        cls.__hippo_decorators = []
+        cls.__hippo_decorators = []  # type: ignore
     if not hasattr(cls, "__hippo_argdecorators"):
-        cls.__hippo_argdecorators = []
-    cls.__hippo_decorators.append("Filter")
-    cls.__hippo_decorators.append("Component")
+        cls.__hippo_argdecorators = []  # type: ignore
+    cls.__hippo_decorators.append("Filter")  # type: ignore
+    cls.__hippo_decorators.append("Component")  # type: ignore
     return cast(HippoDecoratorClass, cls)
