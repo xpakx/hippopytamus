@@ -35,6 +35,7 @@ class HippoContainer(Servlet):
         class_markers = get_class_decorators(cls)
         url_prepend = None
         advice = False
+        filter = False
         for dec in class_decorators:
             if dec['__decorator__'] == "RequestMapping":
                 paths = dec['path']
@@ -43,6 +44,8 @@ class HippoContainer(Servlet):
         for marker in class_markers:
             if marker == "ControllerAdvice":
                 advice = True
+            if marker == "Filter":
+                filter = True
         class_dependencies: List[DependencyData] = []
 
         for method in metadata:
@@ -83,11 +86,14 @@ class HippoContainer(Servlet):
                             advice
                     )
 
+        if filter:
+            # TODO: register filter
+            pass
+
         self.logger.debug(class_dependencies)
         if self.components.get(component_name) is not None:
             self.logger.warn(f"Component {component_name} already registered! Overwriting.")
 
-        # TODO: maybe create components with routes earlier
         self.components[component_name] = ComponentData(
                 component=None,
                 componentClass=cls,
