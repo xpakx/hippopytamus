@@ -274,7 +274,7 @@ def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
 
 
 def Filter(cls: Type) -> HippoDecoratorClass:
-    if not isinstance(cls, HippoFilter):
+    if not issubclass(cls, HippoFilter):
         raise Exception("Filter must implement HippoFilter interface")
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
