@@ -10,6 +10,7 @@ from hippopytamus.core.method_parser import RouteData, MethodData, DependencyDat
 from hippopytamus.core.method_parser import HippoMethodProcessor
 from hippopytamus.core.router import HippoRouter
 from hippopytamus.logger.logger import LoggerFactory
+from hippopytamus.core.filter import HippoFilter
 from dataclasses import dataclass, field
 
 
@@ -36,6 +37,7 @@ class HippoContainer(Servlet):
         self.method_processor = HippoMethodProcessor()
         self.router = HippoRouter()
         self.logger = LoggerFactory.get_logger()
+        self.filter_chain: List[str] = []
 
     def register(self, cls: Type) -> None:
         class_data = ClassData()
@@ -94,8 +96,8 @@ class HippoContainer(Servlet):
                     )
 
         if class_data.filter:
-            # TODO: register filter
-            pass
+            # TODO: filters order
+            self.filter_chain.append(class_data.name)
 
         self.logger.debug(class_data.dependencies)
         if self.components.get(class_data.name) is not None:
@@ -117,6 +119,22 @@ class HippoContainer(Servlet):
         uri = parsed.path
         route, pathvars = self.router.get_route(uri, request)
         self.logger.debug(f"PROCESSED: {pathvars}")
+        filtered = False
+        try:
+            filtered = self.filter_request(request)
+        except Exception as e:
+            return self.process_exception(e, None)
+
+        if filtered:
+            # TODO: use exception manager
+            return {
+                    "code": 403,
+                    "body": b"<html><head></head><body><h1>Forbidden</h1></body></html>",
+                    "headers": {
+                        "Server": "Hippopytamus",
+                        "Content-Type": "text/html"
+                    }
+            }
 
         if not route:
             # TODO: use exception manager
@@ -285,3 +303,12 @@ class HippoContainer(Servlet):
         if type(transformed['body']) is str:
             transformed['body'] = bytes(transformed['body'], "utf-8")
         return transformed
+
+    def filter_request(self, request: Request) -> bool:
+        # TODO: request context
+        for filter_name in self.filter_chain:
+            filter = cast(HippoFilter, self.getComponent(filter_name))
+            filtered = filter.filter(request, {})
+            if filtered:
+                return True
+        return False
