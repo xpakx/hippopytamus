@@ -28,6 +28,8 @@ class ClassData:
     filter: bool = False
     dependencies: List[DependencyData] = field(default_factory=list)
     methods: List[Any] = field(default_factory=list)
+    markers: List[str] = field(default_factory=list)
+    decorators: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class HippoContainer(Servlet):
@@ -43,15 +45,15 @@ class HippoContainer(Servlet):
         class_data = ClassData()
         class_data.name = get_type_name(cls)
         class_data.methods = get_class_data(cls)  # TODO: separate constructor
-        class_decorators = get_class_argdecorators(cls)
-        class_markers = get_class_decorators(cls)
+        class_data.decorators = get_class_argdecorators(cls)
+        class_data.markers = get_class_decorators(cls)
         url_prepend = None
-        for dec in class_decorators:
+        for dec in class_data.decorators:
             if dec['__decorator__'] == "RequestMapping":
                 paths = dec['path']
                 if len(paths) > 0:
                     url_prepend = paths[0]  # TODO: multiple paths?
-        for marker in class_markers:
+        for marker in class_data.markers:
             if marker == "ControllerAdvice":
                 class_data.advice = True
             if marker == "Filter":
