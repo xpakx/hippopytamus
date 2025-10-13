@@ -38,7 +38,7 @@ def extract_underlying_type(name: str, param: Parameter) -> Optional[Dict[str, A
     return {"name": name, "class": cls, "annotations": annotations}
 
 
-def get_class_data(cls: Type) -> List[Any]:
+def get_class_methods(cls: Type) -> List[Any]:
     logger = LoggerFactory.get_logger(for_cls="hippopytamus.core.extractor")
     logger.debug(cls)
     logger.debug(f"Class name: {cls.__name__}")

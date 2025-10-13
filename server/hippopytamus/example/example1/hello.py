@@ -8,7 +8,6 @@ from hippopytamus.core.annotation import (
 @Controller
 @RequestMapping("/h2")
 class HelloController:
-    # TODO: path variables
     @GetMapping("/shout/{word}")
     def shout(self, word: PathVariable(str)) -> str:
         return f"<h1>{word.upper()}!!!</h1>"

@@ -1,13 +1,14 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
-from hippopytamus.core.extractor import get_class_data, get_class_argdecorators
-from hippopytamus.core.extractor import get_type_name, get_class_decorators
+from hippopytamus.core.extractor import get_class_methods, get_class_argdecorators
+from hippopytamus.core.extractor import get_type_name
 from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
 import json
 from hippopytamus.core.method_parser import RouteData, MethodData, DependencyData
 from hippopytamus.core.method_parser import HippoMethodProcessor
+from hippopytamus.core.class_parser import HippoClassProcessor
 from hippopytamus.core.router import HippoRouter
 from hippopytamus.logger.logger import LoggerFactory
 from hippopytamus.core.filter import HippoFilter
@@ -21,17 +22,6 @@ class ComponentData:
     dependencies: List[DependencyData] = field(default_factory=list)
 
 
-@dataclass
-class ClassData:
-    name: str = ""
-    advice: bool = False
-    filter: bool = False
-    dependencies: List[DependencyData] = field(default_factory=list)
-    methods: List[Any] = field(default_factory=list)
-    markers: List[str] = field(default_factory=list)
-    decorators: List[Dict[str, Any]] = field(default_factory=list)
-
-
 class HippoContainer(Servlet):
     def __init__(self) -> None:
         self.components: Dict[str, ComponentData] = {}
@@ -40,24 +30,10 @@ class HippoContainer(Servlet):
         self.router = HippoRouter()
         self.logger = LoggerFactory.get_logger()
         self.filter_chain: List[str] = []
+        self.class_processor = HippoClassProcessor()
 
     def register(self, cls: Type) -> None:
-        class_data = ClassData()
-        class_data.name = get_type_name(cls)
-        class_data.methods = get_class_data(cls)  # TODO: separate constructor
-        class_data.decorators = get_class_argdecorators(cls)
-        class_data.markers = get_class_decorators(cls)
-        url_prepend = None
-        for dec in class_data.decorators:
-            if dec['__decorator__'] == "RequestMapping":
-                paths = dec['path']
-                if len(paths) > 0:
-                    url_prepend = paths[0]  # TODO: multiple paths?
-        for marker in class_data.markers:
-            if marker == "ControllerAdvice":
-                class_data.advice = True
-            if marker == "Filter":
-                class_data.filter = True
+        class_data = self.class_processor.parse_class(cls)
 
         for method in class_data.methods:
             method_name = method.get('name', 'unknown')
@@ -86,7 +62,7 @@ class HippoContainer(Servlet):
                     self.router.register_route(
                             annotation,
                             method_data.to_route(),
-                            url_prepend
+                            class_data.url_prepend
                     )
                 elif annotation['__decorator__'] == "ExceptionHandler":
                     self.logger.debug(f"Found @ExceptionHandler in {method_name}")
