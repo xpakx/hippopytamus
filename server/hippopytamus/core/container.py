@@ -1,7 +1,6 @@
 from hippopytamus.protocol.interface import Servlet, Response, Request
 from typing import List, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
-from hippopytamus.core.extractor import get_class_methods, get_class_argdecorators
 from hippopytamus.core.extractor import get_type_name
 from hippopytamus.core.exception import HippoExceptionManager
 from urllib.parse import urlparse, parse_qs
@@ -35,6 +34,11 @@ class HippoContainer(Servlet):
     def register(self, cls: Type) -> None:
         class_data = self.class_processor.parse_class(cls)
 
+        self.method_processor.process_constructor(
+                class_data.constructor.get('signature', []),
+                class_data.dependencies
+        )
+
         for method in class_data.methods:
             method_name = method.get('name', 'unknown')
             self.logger.debug(f"{len(method.get('signature', []))} params in {method_name}")
@@ -48,13 +52,7 @@ class HippoContainer(Servlet):
                     paramLen=params_len,
             )
 
-            if method_name == "__init__":
-                self.method_processor.process_constructor(
-                        signature,
-                        class_data.dependencies
-                )
-            else:
-                self.method_processor.process_method(signature, method_data)
+            self.method_processor.process_method(signature, method_data)
 
             self.logger.debug(f"Found decorators for method {method_name}", decorators=method['decorators'])
             for annotation in method['decorators']:
