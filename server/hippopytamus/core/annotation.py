@@ -42,46 +42,41 @@ def getListForStrList(arg: strList) -> List[str]:
     return arg if isinstance(arg, list) else [arg]
 
 
-def get_request_wrapper(path: strList = [], consumes: strList = [],
-                        headers: strList = [], method: strList = [],
-                        name: str = "", params: strList = [],
-                        produces: strList = [], value: strList = []
-                        ) -> Callable[[Callable], Union[HippoDecoratorFunc, HippoDecoratorClass]]:
+def get_wrapper_for_annotation(
+        name: str,
+        applicable_to_class: bool,
+        applicable_to_method: bool,
+        decorators: List[str],
+        argdecorator: Dict[str, Any] | None = None,
+        req_sublass: Type | None = None
+) -> Callable[[Callable], Union[HippoDecoratorFunc, HippoDecoratorClass]]:
     def decorator(func: Callable) -> Union[HippoDecoratorFunc, HippoDecoratorClass]:
         if inspect.isclass(func):
+            if not applicable_to_class:
+                raise Exception(f"@{name} cannot be applied to class")
+            if req_sublass is not None and not issubclass(func, req_sublass):
+                raise Exception(f"@{name} must implement {req_sublass.__name__} interface")
+
             if not hasattr(func, "__hippo_decorators"):
                 func.__hippo_decorators = []
             if not hasattr(func, "__hippo_argdecorators"):
                 func.__hippo_argdecorators = []
-            func.__hippo_argdecorators.append(
-                    {
-                        "__decorator__": "RequestMapping",
-                        "path": getListForStrList(path),
-                        "name": name,
-                        "consumes": getListForStrList(consumes),
-                        "headers": getListForStrList(headers),
-                        "method": getListForStrList(method),
-                        "params": getListForStrList(params),
-                        "produces": getListForStrList(produces),
-                        "value": getListForStrList(value),
-                        })
+            for decorator in decorators:
+                func.__hippo_decorators.append(decorator)
+
+            if argdecorator is not None:
+                func.__hippo_argdecorators.append(argdecorator)
             return cast(HippoDecoratorClass, func)
         else:
+            if not applicable_to_method:
+                raise Exception(f"@{name} cannot be applied to method")
+
             @functools.wraps(func)
-            def wrapper(*args, **kwargs):  # type: ignore
+            def wrapper(*args: Any, **kwargs: Any):
                 return func(*args, **kwargs)
             hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
-            hippo_wrapper.__hippo_decorator = {
-                    "__decorator__": "RequestMapping",
-                    "path": getListForStrList(path),
-                    "name": name,
-                    "consumes": getListForStrList(consumes),
-                    "headers": getListForStrList(headers),
-                    "method": getListForStrList(method),
-                    "params": getListForStrList(params),
-                    "produces": getListForStrList(produces),
-                    "value": getListForStrList(value),
-                }
+            if argdecorator is not None:
+                hippo_wrapper.__hippo_decorator = argdecorator
             return hippo_wrapper
     return decorator
 
@@ -96,13 +91,23 @@ def RequestMapping(path: strList = [], consumes: strList = [],
         # used without parentheses, called by system,
         # path is actually a function
         func = path
-        wrapper = get_request_wrapper()
+        wrapper = RequestMapping()
         return wrapper(func)
 
     else:
         # used directly by user with arguments
-        return get_request_wrapper(path, consumes, headers, method,
-                                   name, params, produces, value)
+        dec = {
+                "__decorator__": "RequestMapping",
+                "path": getListForStrList(path),
+                "name": name,
+                "consumes": getListForStrList(consumes),
+                "headers": getListForStrList(headers),
+                "method": getListForStrList(method),
+                "params": getListForStrList(params),
+                "produces": getListForStrList(produces),
+                "value": getListForStrList(value),
+        }
+        return get_wrapper_for_annotation("RequestMapping", True, True, [], dec)
 
 
 def GetMapping(path: strList = [], consumes: strList = [],
@@ -111,11 +116,11 @@ def GetMapping(path: strList = [], consumes: strList = [],
                value: strList = []) -> Callable:
     if callable(path):
         func = path
-        wrapper = get_request_wrapper(method="GET")
+        wrapper = GetMapping()
         return wrapper(func)
     else:
-        return get_request_wrapper(path, consumes, headers, "GET",
-                                   name, params, produces, value)
+        return RequestMapping(path, consumes, headers, "GET",
+                              name, params, produces, value)
 
 
 def PostMapping(path: strList = [], consumes: strList = [],
@@ -124,11 +129,11 @@ def PostMapping(path: strList = [], consumes: strList = [],
                 value: strList = []) -> Callable:
     if callable(path):
         func = path
-        wrapper = get_request_wrapper(method="POST")
+        wrapper = PostMapping()
         return wrapper(func)
     else:
-        return get_request_wrapper(path, consumes, headers, "POST",
-                                   name, params, produces, value)
+        return RequestMapping(path, consumes, headers, "POST",
+                              name, params, produces, value)
 
 
 class AnnotationMetadata:
@@ -195,71 +200,34 @@ def Value(cls: T, value: str) -> HippoArgDecorator:
 # TODO: PropertySource
 
 
-# Exception handler
-def get_exception_wrapper(exc_type: Optional[type[Exception]] = None
-                          ) -> Callable[[Callable], HippoDecoratorFunc]:
-    def decorator(func: Callable) -> HippoDecoratorFunc:
-        if inspect.isclass(func):
-            raise Exception("@ExceptionHandler cannot be applied to class")
-        else:
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):  # type: ignore
-                return func(*args, **kwargs)
-            hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
-            hippo_wrapper.__hippo_decorator = {
-                    "__decorator__": "ExceptionHandler",
-                    "type": exc_type,
-                }
-            return hippo_wrapper
-    return decorator
-
-
 def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
     if isinstance(exc_type, type) and issubclass(exc_type, Exception):
-        return get_exception_wrapper(exc_type)
+        dec = {
+                "__decorator__": "ExceptionHandler",
+                "type": exc_type,
+        }
+        markers = []
+        return get_wrapper_for_annotation("ExceptionHandler", False, True, markers,
+                                          dec, req_sublass=HippoFilter)
     else:
         func = exc_type
-        wrapper = get_exception_wrapper()
+        wrapper = ExceptionHandler()
         return wrapper(func)  # type: ignore
-
-
-# Response status
-def get_status_wrapper(code: int = 500, reason: str = "") -> Callable[[Callable], Union[HippoDecoratorFunc, HippoDecoratorClass]]:
-    def decorator(func: Callable) -> Union[HippoDecoratorFunc, HippoDecoratorClass]:
-        if inspect.isclass(func):
-            if not hasattr(func, "__hippo_decorators"):
-                func.__hippo_decorators = []
-            if not hasattr(func, "__hippo_argdecorators"):
-                func.__hippo_argdecorators = []
-            func.__hippo_decorators.append("ResponseStatusException")
-            func.__hippo_argdecorators.append(
-                    {
-                        "__decorator__": "ResponseStatus",
-                        "code": code,
-                        "reason": reason,
-                        })
-            return cast(HippoDecoratorClass, func)
-        else:
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):  # type: ignore
-                return func(*args, **kwargs)
-            hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
-            hippo_wrapper.__hippo_decorator = {
-                    "__decorator__": "ResponseStatus",
-                    "code": code,
-                    "reason": reason,
-                }
-            return hippo_wrapper
-    return decorator
 
 
 def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
     if callable(code):
         func = code
-        wrapper = get_status_wrapper()
+        wrapper = ResponseStatus()
         return wrapper(func)  # type: ignore
     else:
-        return get_status_wrapper(code, reason)
+        dec = {
+                "__decorator__": "ResponseStatus",
+                "code": code,
+                "reason": reason,
+        }
+        markers = ["ResponseStatusException"]
+        return get_wrapper_for_annotation("ResponseStatus", True, True, markers, dec)
 
 
 # TODO
@@ -273,29 +241,16 @@ def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
     return cast(HippoDecoratorClass, cls)
 
 
-def get_filter_wrapper(priority: int = 1) -> Callable:
-    def decorator(cls: Type) -> HippoDecoratorClass:
-        if not issubclass(cls, HippoFilter):
-            raise Exception("Filter must implement HippoFilter interface")
-        if not hasattr(cls, "__hippo_decorators"):
-            cls.__hippo_decorators = []  # type: ignore
-        if not hasattr(cls, "__hippo_argdecorators"):
-            cls.__hippo_argdecorators = []  # type: ignore
-        cls.__hippo_decorators.append("Filter")  # type: ignore
-        cls.__hippo_decorators.append("Component")  # type: ignore
-
-        cls.__hippo_argdecorators.append({  # type: ignore
-                    "__decorator__": "Filter",
-                    "priority": priority,
-        })
-        return cast(HippoDecoratorClass, cls)
-    return decorator
-
-
-def Filter(priority: int) -> Callable:
+def Filter(priority: int = 1) -> Callable:
     if callable(priority):
         func = priority
-        wrapper = get_filter_wrapper()
+        wrapper = Filter()
         return wrapper(func)  # type: ignore
     else:
-        return get_filter_wrapper(priority)
+        dec = {
+                "__decorator__": "Filter",
+                "priority": priority,
+        }
+        markers = ["Filter", "Component"]
+        return get_wrapper_for_annotation("Filter", True, True, markers,
+                                          dec, req_sublass=HippoFilter)
