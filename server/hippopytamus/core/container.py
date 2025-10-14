@@ -88,6 +88,12 @@ class HippoContainer(Servlet):
         )
 
     def process_request(self, request: Request) -> Response:
+        try:
+            return self.do_process_request(request)
+        except Exception as e:
+            return self.process_exception(e, None)
+
+    def do_process_request(self, request: Request) -> Response:
         if not isinstance(request, dict):
             raise Exception("Error")
         # TODO extracting and transforming body, path variables, query params
@@ -97,23 +103,13 @@ class HippoContainer(Servlet):
         uri = parsed.path
         route, pathvars = self.router.get_route(uri, request)
         self.logger.debug(f"PROCESSED: {pathvars}")
-        filtered = False
-        try:
-            filtered = self.filter_request(request)
-        except Exception as e:
-            return self.process_exception(e, None)
+        filtered = self.filter_request(request)
 
         if filtered:
-            return self.process_exception(
-                    HippoInternalForbiddenException(),
-                    None
-            )
+            raise HippoInternalForbiddenException()
 
         if not route:
-            return self.process_exception(
-                    HippoInternalNotFoundException(),
-                    None
-            )
+            raise HippoInternalNotFoundException()
 
         params: List[Any] = [None] * route.paramLen
         self.set_body_param(params, request, route)
