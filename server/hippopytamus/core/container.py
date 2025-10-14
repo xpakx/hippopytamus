@@ -3,6 +3,8 @@ from typing import List, get_origin, Union
 from typing import Dict, Any, cast, Type, Optional
 from hippopytamus.core.extractor import get_type_name
 from hippopytamus.core.exception import HippoExceptionManager
+from hippopytamus.core.exception import HippoInternalForbiddenException
+from hippopytamus.core.exception import HippoInternalNotFoundException
 from urllib.parse import urlparse, parse_qs
 import json
 from hippopytamus.core.method_parser import RouteData, MethodData, DependencyData
@@ -102,26 +104,16 @@ class HippoContainer(Servlet):
             return self.process_exception(e, None)
 
         if filtered:
-            # TODO: use exception manager
-            return {
-                    "code": 403,
-                    "body": b"<html><head></head><body><h1>Forbidden</h1></body></html>",
-                    "headers": {
-                        "Server": "Hippopytamus",
-                        "Content-Type": "text/html"
-                    }
-            }
+            return self.process_exception(
+                    HippoInternalForbiddenException(),
+                    None
+            )
 
         if not route:
-            # TODO: use exception manager
-            return {
-                    "code": 404,
-                    "body": b"<html><head></head><body><h1>Not found</h1></body></html>",
-                    "headers": {
-                        "Server": "Hippopytamus",
-                        "Content-Type": "text/html"
-                    }
-            }
+            return self.process_exception(
+                    HippoInternalNotFoundException(),
+                    None
+            )
 
         params: List[Any] = [None] * route.paramLen
         self.set_body_param(params, request, route)

@@ -4,7 +4,7 @@ from hippopytamus.core.extractor import (
         get_class_argdecorators, get_type_name
 )
 from hippopytamus.logger.logger import LoggerFactory
-from hippopytamus.core.extractor import get_type_name
+from hippopytamus.core.annotation import ResponseStatus
 import inspect
 
 
@@ -52,6 +52,16 @@ class HippoDefaultExceptionHandler(HippoExceptionHandler):
         pass
 
 
+@ResponseStatus(code=404, reason="<html><head></head><body><h1>Not found</h1></body></html>")
+class HippoInternalNotFoundException(Exception):
+    pass
+
+
+@ResponseStatus(code=403, reason="<html><head></head><body><h1>Forbidden</h1></body></html>")
+class HippoInternalForbiddenException(Exception):
+    pass
+
+
 class HippoExceptionManager:
     def __init__(self) -> None:
         self.defaultExceptionHandler: HippoExceptionHandler = HippoDefaultExceptionHandler()
@@ -60,6 +70,8 @@ class HippoExceptionManager:
         self.perControllerLocalHandlers: Dict[str, HippoExceptionHandler] = {}
         self.localHandlers: Dict[str, Dict[str, HippoExceptionHandler]] = {}
         self.logger = LoggerFactory.get_logger()
+        self.register_exception(HippoInternalNotFoundException)
+        self.register_exception(HippoInternalForbiddenException)
 
     def register_exception_handler(self, handler: HippoExceptionHandler) -> None:
         handler_type = handler.get_type()
