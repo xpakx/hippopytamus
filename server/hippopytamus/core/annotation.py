@@ -256,7 +256,7 @@ def get_status_wrapper(code: int = 500, reason: str = "") -> Callable[[Callable]
 def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
     if callable(code):
         func = code
-        wrapper = get_request_wrapper()
+        wrapper = get_status_wrapper()
         return wrapper(func)  # type: ignore
     else:
         return get_status_wrapper(code, reason)
