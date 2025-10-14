@@ -37,6 +37,7 @@ class HttpProtocol10(Protocol):
     codes = {
             200: b"OK",
             400: b"Bad Request",
+            403: b"Forbidden",
             404: b"Not Found",
             500: b"Internal Server Error",
             501: b"Not Implemented",
