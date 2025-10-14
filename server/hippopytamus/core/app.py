@@ -68,6 +68,8 @@ class HippoApp:
             except ImportError as e:
                 self.logger.warn(f"Failed to import module {module_name}: {e}")
 
+        all_classes_set = {cls for cls in all_classes}
+        all_classes = list(all_classes_set)
         return all_classes
 
     def get_components(self, all_classes: List[Any]) -> List[Any]:

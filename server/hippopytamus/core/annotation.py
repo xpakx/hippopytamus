@@ -284,7 +284,7 @@ def get_filter_wrapper(priority: int = 1) -> Callable:
         cls.__hippo_decorators.append("Filter")  # type: ignore
         cls.__hippo_decorators.append("Component")  # type: ignore
 
-        cls.__hippo_argdecorators.append({
+        cls.__hippo_argdecorators.append({  # type: ignore
                     "__decorator__": "Filter",
                     "priority": priority,
         })

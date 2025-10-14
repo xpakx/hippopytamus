@@ -41,6 +41,9 @@ class HippoContainer(Servlet):
 
     def register(self, cls: Type) -> None:
         class_data = self.class_processor.parse_class(cls)
+        if self.components.get(class_data.name) is not None:
+            self.logger.warn(f"Component {class_data.name} already registered!")
+            return
 
         self.method_processor.process_constructor(
                 class_data.constructor.get('signature', []),
@@ -96,8 +99,6 @@ class HippoContainer(Servlet):
                 self.filter_chain.append(filter_data)
 
         self.logger.debug(class_data.dependencies)
-        if self.components.get(class_data.name) is not None:
-            self.logger.warn(f"Component {class_data.name} already registered! Overwriting.")
 
         self.components[class_data.name] = ComponentData(
                 component=None,
@@ -122,7 +123,11 @@ class HippoContainer(Servlet):
         route, pathvars = self.router.get_route(uri, request)
         self.logger.debug(f"PROCESSED: {pathvars}")
 
-        request_context = {}
+        request_context = {
+                "path": uri,
+                "params": query_params,
+                "pathvars": pathvars,
+        }
         filtered = self.filter_request(request, request_context)
 
         if filtered:
