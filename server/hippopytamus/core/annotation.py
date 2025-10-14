@@ -273,13 +273,29 @@ def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
     return cast(HippoDecoratorClass, cls)
 
 
-def Filter(cls: Type) -> HippoDecoratorClass:
-    if not issubclass(cls, HippoFilter):
-        raise Exception("Filter must implement HippoFilter interface")
-    if not hasattr(cls, "__hippo_decorators"):
-        cls.__hippo_decorators = []  # type: ignore
-    if not hasattr(cls, "__hippo_argdecorators"):
-        cls.__hippo_argdecorators = []  # type: ignore
-    cls.__hippo_decorators.append("Filter")  # type: ignore
-    cls.__hippo_decorators.append("Component")  # type: ignore
-    return cast(HippoDecoratorClass, cls)
+def get_filter_wrapper(priority: int = 1) -> Callable:
+    def decorator(cls: Type) -> HippoDecoratorClass:
+        if not issubclass(cls, HippoFilter):
+            raise Exception("Filter must implement HippoFilter interface")
+        if not hasattr(cls, "__hippo_decorators"):
+            cls.__hippo_decorators = []  # type: ignore
+        if not hasattr(cls, "__hippo_argdecorators"):
+            cls.__hippo_argdecorators = []  # type: ignore
+        cls.__hippo_decorators.append("Filter")  # type: ignore
+        cls.__hippo_decorators.append("Component")  # type: ignore
+
+        cls.__hippo_argdecorators.append({
+                    "__decorator__": "Filter",
+                    "priority": priority,
+        })
+        return cast(HippoDecoratorClass, cls)
+    return decorator
+
+
+def Filter(priority: int) -> Callable:
+    if callable(priority):
+        func = priority
+        wrapper = get_filter_wrapper()
+        return wrapper(func)  # type: ignore
+    else:
+        return get_filter_wrapper(priority)

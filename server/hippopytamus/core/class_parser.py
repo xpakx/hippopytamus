@@ -12,6 +12,7 @@ class ClassData:
     name: str = ""
     advice: bool = False
     filter: bool = False
+    filter_priority: int | None = None
     dependencies: List[DependencyData] = field(default_factory=list)
     methods: List[Any] = field(default_factory=list)
     constructor: Any = None
@@ -43,6 +44,8 @@ class HippoClassProcessor:
                 paths = dec['path']
                 if len(paths) > 0:
                     class_data.url_prepend = paths[0]  # TODO: multiple paths?
+            if dec['__decorator__'] == "Filter":
+                class_data.filter_priority = dec['priority']
         for marker in class_data.markers:
             if marker == "ControllerAdvice":
                 class_data.advice = True

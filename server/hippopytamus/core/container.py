@@ -23,6 +23,12 @@ class ComponentData:
     dependencies: List[DependencyData] = field(default_factory=list)
 
 
+@dataclass
+class FilterData:
+    name: str
+    priority: int
+
+
 class HippoContainer(Servlet):
     def __init__(self) -> None:
         self.components: Dict[str, ComponentData] = {}
@@ -30,7 +36,7 @@ class HippoContainer(Servlet):
         self.method_processor = HippoMethodProcessor()
         self.router = HippoRouter()
         self.logger = LoggerFactory.get_logger()
-        self.filter_chain: List[str] = []
+        self.filter_chain: List[FilterData] = []
         self.class_processor = HippoClassProcessor()
 
     def register(self, cls: Type) -> None:
@@ -74,8 +80,20 @@ class HippoContainer(Servlet):
                     )
 
         if class_data.filter:
-            # TODO: filters order
-            self.filter_chain.append(class_data.name)
+            prior = class_data.filter_priority
+            filter_priority = prior if prior is not None else 1
+            filter_data = FilterData(
+                    name=class_data.name,
+                    priority=filter_priority,
+            )
+            inserted = False
+            for i, existing in enumerate(self.filter_chain):
+                if filter_data.priority < existing.priority:
+                    self.filter_chain.insert(i, filter_data)
+                    inserted = True
+                    break
+            if not inserted:
+                self.filter_chain.append(filter_data)
 
         self.logger.debug(class_data.dependencies)
         if self.components.get(class_data.name) is not None:
@@ -103,7 +121,9 @@ class HippoContainer(Servlet):
         uri = parsed.path
         route, pathvars = self.router.get_route(uri, request)
         self.logger.debug(f"PROCESSED: {pathvars}")
-        filtered = self.filter_request(request)
+
+        request_context = {}
+        filtered = self.filter_request(request, request_context)
 
         if filtered:
             raise HippoInternalForbiddenException()
@@ -268,11 +288,11 @@ class HippoContainer(Servlet):
             transformed['body'] = bytes(transformed['body'], "utf-8")
         return transformed
 
-    def filter_request(self, request: Request) -> bool:
-        # TODO: request context
-        for filter_name in self.filter_chain:
+    def filter_request(self, request: Request, context: Dict) -> bool:
+        for filter_data in self.filter_chain:
+            filter_name = filter_data.name
             filter = cast(HippoFilter, self.getComponent(filter_name))
-            filtered = filter.filter(request, {})
+            filtered = filter.filter(request, context)
             if filtered:
                 return True
         return False
