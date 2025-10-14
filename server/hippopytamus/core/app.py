@@ -9,6 +9,7 @@ from types import ModuleType
 from hippopytamus.core.container import HippoContainer
 from hippopytamus.core.extractor import get_class_decorators
 from hippopytamus.logger.logger import LoggerFactory
+from hippopytamus.core.lazy_import_utils import module_is_loaded, module_exists
 from dataclasses import dataclass
 
 
@@ -25,9 +26,10 @@ class HippoApp:
             module_name: str,
             opt: ServerOptions = ServerOptions()
             ) -> None:
-        all_classes = self.get_module_classes(module_name)
-        components = self.get_components(all_classes)
         self.logger = LoggerFactory.get_logger()
+        all_classes = self.get_module_classes(module_name)
+        self.hippo_self_inspect()
+        components = self.get_components(all_classes)
         self.logger.debug(components)
         self.container = HippoContainer()
         for cls in components:
@@ -79,3 +81,15 @@ class HippoApp:
             and obj is not Exception
             and 'ResponseStatusException' in get_class_decorators(obj)
         ]
+
+    def check_module(self, name: str) -> None:
+        if module_exists(name):
+            self.logger.debug(f"{name} module exists")
+        if module_is_loaded(name):
+            self.logger.debug(f"{name} module is loaded")
+
+    def hippo_self_inspect(self) -> None:
+        self.check_module('core')
+        self.check_module('example')
+        self.check_module('data')
+        self.check_module('security')
