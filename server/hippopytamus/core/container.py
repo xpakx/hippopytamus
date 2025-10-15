@@ -14,6 +14,7 @@ from hippopytamus.core.router import HippoRouter
 from hippopytamus.logger.logger import LoggerFactory
 from hippopytamus.core.filter import HippoFilter
 from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
 
 
 @dataclass
@@ -29,6 +30,28 @@ class FilterData:
     priority: int
 
 
+class ComponentProcessor(ABC):
+    @abstractmethod
+    def should_process(self, component: ComponentData) -> bool:
+        """Decides whether to process a component."""
+        return False
+
+    @abstractmethod
+    def process(self, component: ComponentData) -> None:
+        """Processes a component."""
+        pass
+
+    @abstractmethod
+    def should_process_method(self, method: MethodData) -> bool:
+        """Decides whether to process a method."""
+        return False
+
+    @abstractmethod
+    def process_method(self, method: MethodData) -> None:
+        """Processes a method."""
+        pass
+
+
 class HippoContainer(Servlet):
     def __init__(self) -> None:
         self.components: Dict[str, ComponentData] = {}
@@ -38,6 +61,7 @@ class HippoContainer(Servlet):
         self.logger = LoggerFactory.get_logger()
         self.filter_chain: List[FilterData] = []
         self.class_processor = HippoClassProcessor()
+        self.component_processors: List[ComponentProcessor] = []
 
     def register(self, cls: Type) -> None:
         class_data = self.class_processor.parse_class(cls)
@@ -100,11 +124,17 @@ class HippoContainer(Servlet):
 
         self.logger.debug(class_data.dependencies)
 
-        self.components[class_data.name] = ComponentData(
+        comp = ComponentData(
                 component=None,
                 componentClass=cls,
                 dependencies=class_data.dependencies,
         )
+
+        for processor in self.component_processors:
+            if processor.should_process(comp):
+                processor.process(comp)
+
+        self.components[class_data.name] = comp
 
     def process_request(self, request: Request) -> Response:
         try:
@@ -301,3 +331,6 @@ class HippoContainer(Servlet):
             if filtered:
                 return True
         return False
+
+    def add_component_processor(self, processor: ComponentProcessor) -> None:
+        self.component_processors.append(processor)
