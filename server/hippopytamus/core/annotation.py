@@ -16,11 +16,15 @@ class HippoDecoratorClass(Protocol):
     __hippo_argdecorators: List[Dict[str, Any]]
 
 
-def Component(cls: Type) -> HippoDecoratorClass:
+def hippo_ensure_meta_lists(cls: Type) -> None:
     if not hasattr(cls, "__hippo_decorators"):
         cls.__hippo_decorators = []
     if not hasattr(cls, "__hippo_argdecorators"):
         cls.__hippo_argdecorators = []
+
+
+def Component(cls: Type) -> HippoDecoratorClass:
+    hippo_ensure_meta_lists(cls)
     cls.__hippo_decorators.append("Component")
     return cast(HippoDecoratorClass, cls)
 
@@ -57,10 +61,7 @@ def get_wrapper_for_annotation(
             if req_sublass is not None and not issubclass(func, req_sublass):
                 raise Exception(f"@{name} must implement {req_sublass.__name__} interface")
 
-            if not hasattr(func, "__hippo_decorators"):
-                func.__hippo_decorators = []
-            if not hasattr(func, "__hippo_argdecorators"):
-                func.__hippo_argdecorators = []
+            hippo_ensure_meta_lists(func)
             for decorator in decorators:
                 func.__hippo_decorators.append(decorator)
 
@@ -72,7 +73,7 @@ def get_wrapper_for_annotation(
                 raise Exception(f"@{name} cannot be applied to method")
 
             @functools.wraps(func)
-            def wrapper(*args: Any, **kwargs: Any):
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 return func(*args, **kwargs)
             hippo_wrapper = cast(HippoDecoratorFunc, wrapper)
             if argdecorator is not None:
@@ -81,33 +82,84 @@ def get_wrapper_for_annotation(
     return decorator
 
 
+# TODO: base type
+# TODO: transformations
+def hippo_make_decorator(
+        name: str,
+        argdec_name: str | None = None,
+        class_ok: bool = True,
+        method_ok: bool = True,
+        markers: List[str] | None = None,
+        defaults: Dict[str, Any] | None = None,
+) -> Callable[..., Callable]:
+    markers = markers or []
+    defaults = defaults or {}
+    argdec_name = argdec_name or name
+
+    def decorator(*args: Any, **kwargs: Any) -> Callable:
+        dec = {
+                "__decorator__": argdec_name,
+                **defaults
+        }
+        # trick to let use decorator with or without parentheses
+        if len(args) == 1 and callable(args[0]):
+            # used without parentheses, called by system,
+            # first arg is actually a function
+            func = args[0]
+            wrapper = get_wrapper_for_annotation(
+                    name,
+                    class_ok,
+                    method_ok,
+                    markers,
+                    dec
+            )
+            return wrapper(func)  # type: ignore
+        dec = {
+                "__decorator__": argdec_name,
+                **defaults,
+                **kwargs
+        }
+        # used directly by user with arguments
+        return get_wrapper_for_annotation(
+                    name,
+                    class_ok,
+                    method_ok,
+                    markers,
+                    dec
+        )
+    return decorator
+
+
 def RequestMapping(path: strList = [], consumes: strList = [],
                    headers: strList = [], method: strList = [],
                    name: str = "", params: strList = [],
                    produces: strList = [], value: strList = []
                    ) -> Callable:
-    # trick to let use decorator with or without parentheses
-    if callable(path):
-        # used without parentheses, called by system,
-        # path is actually a function
-        func = path
-        wrapper = RequestMapping()
-        return wrapper(func)
-
-    else:
-        # used directly by user with arguments
-        dec = {
-                "__decorator__": "RequestMapping",
-                "path": getListForStrList(path),
-                "name": name,
-                "consumes": getListForStrList(consumes),
-                "headers": getListForStrList(headers),
-                "method": getListForStrList(method),
-                "params": getListForStrList(params),
-                "produces": getListForStrList(produces),
-                "value": getListForStrList(value),
-        }
-        return get_wrapper_for_annotation("RequestMapping", True, True, [], dec)
+    decorator = hippo_make_decorator(
+            "RequestMapping",
+            markers=[],
+            defaults={
+                "path": [],
+                "consumes": [],
+                "headers": [],
+                "method": [],
+                "name": "",
+                "params": [],
+                "produces": [],
+                "value": [],
+            },
+    )
+    return decorator(
+            path,
+            path=getListForStrList(path),
+            name=name,
+            consumes=getListForStrList(consumes),
+            headers=getListForStrList(headers),
+            method=getListForStrList(method),
+            params=getListForStrList(params),
+            produces=getListForStrList(produces),
+            value=getListForStrList(value),
+    )
 
 
 def GetMapping(path: strList = [], consumes: strList = [],
@@ -182,10 +234,7 @@ def RequestHeader(cls: T, name: Optional[str] = None, required: bool = False) ->
 
 
 def Configuration(cls: Type) -> HippoDecoratorClass:
-    if not hasattr(cls, "__hippo_decorators"):
-        cls.__hippo_decorators = []
-    if not hasattr(cls, "__hippo_argdecorators"):
-        cls.__hippo_argdecorators = []
+    hippo_ensure_meta_lists(cls)
     cls.__hippo_decorators.append("Configuration")
     return cast(HippoDecoratorClass, cls)
 
@@ -206,7 +255,7 @@ def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
                 "__decorator__": "ExceptionHandler",
                 "type": exc_type,
         }
-        markers = []
+        markers: List[str] = []
         return get_wrapper_for_annotation("ExceptionHandler", False, True, markers,
                                           dec, req_sublass=HippoFilter)
     else:
@@ -216,41 +265,27 @@ def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
 
 
 def ResponseStatus(code: int = 500, reason: str = "") -> Callable:
-    if callable(code):
-        func = code
-        wrapper = ResponseStatus()
-        return wrapper(func)  # type: ignore
-    else:
-        dec = {
-                "__decorator__": "ResponseStatus",
-                "code": code,
-                "reason": reason,
-        }
-        markers = ["ResponseStatusException"]
-        return get_wrapper_for_annotation("ResponseStatus", True, True, markers, dec)
+    decorator = hippo_make_decorator(
+            "ResponseStatus",
+            markers=["ResponseStatusException"],
+            defaults={"code": 500, "reason": ""},
+    )
+    return decorator(code=code, reason=reason)
 
 
 # TODO
-def ControllerAdvice(cls: Type) -> HippoDecoratorClass:
-    if not hasattr(cls, "__hippo_decorators"):
-        cls.__hippo_decorators = []
-    if not hasattr(cls, "__hippo_argdecorators"):
-        cls.__hippo_argdecorators = []
-    cls.__hippo_decorators.append("Component")
-    cls.__hippo_decorators.append("ControllerAdvice")
-    return cast(HippoDecoratorClass, cls)
+def ControllerAdvice(cls: Type) -> Callable:
+    decorator = hippo_make_decorator(
+            "ControllerAdvice",
+            markers=["ControllerAdvice", "Component"],
+    )
+    return decorator(cls)
 
 
 def Filter(priority: int = 1) -> Callable:
-    if callable(priority):
-        func = priority
-        wrapper = Filter()
-        return wrapper(func)  # type: ignore
-    else:
-        dec = {
-                "__decorator__": "Filter",
-                "priority": priority,
-        }
-        markers = ["Filter", "Component"]
-        return get_wrapper_for_annotation("Filter", True, True, markers,
-                                          dec, req_sublass=HippoFilter)
+    decorator = hippo_make_decorator(
+            "Filter",
+            markers=["Filter", "Component"],
+            defaults={"priority": 1},
+    )
+    return decorator(priority, priority=priority)
