@@ -34,7 +34,7 @@ class ComponentProcessor(ABC):
     @abstractmethod
     def should_process(self, component: ComponentData) -> bool:
         """Decides whether to process a component."""
-        return False
+        pass
 
     @abstractmethod
     def process(self, component: ComponentData) -> None:
@@ -44,7 +44,7 @@ class ComponentProcessor(ABC):
     @abstractmethod
     def should_process_method(self, method: MethodData) -> bool:
         """Decides whether to process a method."""
-        return False
+        pass
 
     @abstractmethod
     def process_method(self, method: MethodData) -> None:
@@ -281,8 +281,8 @@ class HippoContainer(Servlet):
         # TODO add ResponseBody, and transform pydantic/pydantic-like types
         # jsonify dicts
         headers = {"Server": "Hippopytamus", "Content-Type": "text/html"}
-        if not resp:
-            return {"code": 200, "headers": headers}
+        if resp is None:
+            return {"code": 200, "body": b"", "headers": headers}
         if (type(resp) is str):
             return {
                     "code": 200,
@@ -296,6 +296,12 @@ class HippoContainer(Servlet):
                     "headers": headers,
                     }
         if (type(resp) is dict) and 'code' not in resp:
+            return {
+                    "code": 200,
+                    "body": bytes(json.dumps(resp), "utf-8"),
+                    "headers": headers,
+                    }
+        if (type(resp) is list):
             return {
                     "code": 200,
                     "body": bytes(json.dumps(resp), "utf-8"),
