@@ -91,6 +91,7 @@ def hippo_make_decorator(
         method_ok: bool = True,
         markers: List[str] | None = None,
         defaults: Dict[str, Any] | None = None,
+        req_sublass: Type | None = None
 ) -> Callable[..., Callable]:
     markers = markers or []
     defaults = defaults or {}
@@ -111,7 +112,8 @@ def hippo_make_decorator(
                     class_ok,
                     method_ok,
                     markers,
-                    dec
+                    dec,
+                    req_sublass
             )
             return wrapper(func)  # type: ignore
         dec = {
@@ -257,7 +259,7 @@ def ExceptionHandler(exc_type: Optional[type[Exception]] = None) -> Callable:
         }
         markers: List[str] = []
         return get_wrapper_for_annotation("ExceptionHandler", False, True, markers,
-                                          dec, req_sublass=HippoFilter)
+                                          dec, req_sublass=Exception)
     else:
         func = exc_type
         wrapper = ExceptionHandler()
@@ -287,5 +289,6 @@ def Filter(priority: int = 1) -> Callable:
             "Filter",
             markers=["Filter", "Component"],
             defaults={"priority": 1},
+            req_sublass=HippoFilter,
     )
     return decorator(priority, priority=priority)
