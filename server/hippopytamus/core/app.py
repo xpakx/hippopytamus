@@ -28,10 +28,10 @@ class HippoApp:
             ) -> None:
         self.logger = LoggerFactory.get_logger()
         all_classes = self.get_module_classes(module_name)
+        self.container = HippoContainer()
         self.hippo_self_inspect()
         components = self.get_components(all_classes)
         self.logger.debug(components)
-        self.container = HippoContainer()
         for cls in components:
             self.container.register(cls)
         exceptions = self.get_status_exceptions(all_classes)
@@ -84,14 +84,24 @@ class HippoApp:
             and 'ResponseStatusException' in get_class_decorators(obj)
         ]
 
-    def check_module(self, name: str) -> None:
+    def check_module(self, name: str) -> bool:
         if module_exists(name):
             self.logger.debug(f"{name} module exists")
+        else:
+            return False
         if module_is_loaded(name):
             self.logger.debug(f"{name} module is loaded")
+        else:
+            return False
+        return True
 
     def hippo_self_inspect(self) -> None:
         self.check_module('core')
         self.check_module('example')
-        self.check_module('data')
+        data = self.check_module('data')
         self.check_module('security')
+        if data:
+            from hippopytamus.data.data_processor import RepoProcessor
+            self.logger.info("Extending container with data capabilities")
+            processor = RepoProcessor()
+            self.container.add_component_processor(processor)

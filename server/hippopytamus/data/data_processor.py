@@ -13,6 +13,12 @@ class RepoProcessor(ComponentProcessor):
         return issubclass(component.componentClass, HippoRepository)
 
     def process(self, component: ComponentData) -> None:
-        self.logger.debug(f"Processing component {component.component.__name__}")
+        self.logger.debug("Processing component ")
         repo_cls = component.componentClass
         component.componentClass = self.repo_creator.create_repo_impl(repo_cls)
+
+    def should_process_method(self, method) -> bool:
+        return False
+
+    def process_method(self, method) -> None:
+        pass
