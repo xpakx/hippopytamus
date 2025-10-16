@@ -15,10 +15,10 @@ class RepoProcessor(ComponentProcessor):
     def process(self, component: ComponentData) -> None:
         self.logger.debug("Processing component ")
         repo_cls = component.componentClass
-        component.componentClass = self.repo_creator.create_repo_impl(repo_cls)
+        self.repo_creator.create_repo_impl(repo_cls)
 
-    def should_process_method(self, method) -> bool:
+    def should_process_method(self, method) -> bool:  # type: ignore
         return False
 
-    def process_method(self, method) -> None:
+    def process_method(self, method) -> None:  # type: ignore
         pass

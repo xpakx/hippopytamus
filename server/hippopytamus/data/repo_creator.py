@@ -12,23 +12,30 @@ class HippoRepositoryCreator:
     # TODO: parsing methods names
     # TODO: generating methods based on parsed method
     # TODO: arbitrary data backend
-    def create_repo_impl(self, repo_cls: Type[HippoRepository]) -> Type[HippoRepository]:
-        store = {}
-
+    def create_repo_impl(self, repo_cls: Type[HippoRepository]) -> None:
         self.logger.debug(f"Creating repository {repo_cls.__name__}")
 
-        class Impl(repo_cls):
-            def save(self, entity):
-                store[getattr(entity, "id")] = entity
-                return entity
+        self.logger.debug("Patching constructor")
+        original_init = getattr(repo_cls, "__init__", lambda self: None)
 
-            def find_by_id(self, id):
-                return store.get(id)
+        def new_init(self, *args, **kwargs):  # type: ignore
+            original_init(self, *args, **kwargs)
+            self._store = {}
+        repo_cls.__init__ = new_init  # type: ignore
 
-            def find_all(self):
-                return list(store.values())
+        def save(self, entity):  # type: ignore
+            self._store[getattr(entity, "id")] = entity
+            return entity
+        setattr(repo_cls, "save", save)
 
-            def delete_by_id(self, id):
-                store.pop(id, None)
+        def find_by_id(self, id):  # type: ignore
+            return self._store.get(id)
+        setattr(repo_cls, "find_by_id", find_by_id)
 
-        return Impl
+        def find_all(self):  # type: ignore
+            return list(self._store.values())
+        setattr(repo_cls, "find_all", find_all)
+
+        def delete_by_id(self, id):  # type: ignore
+            self._store.pop(id, None)
+        setattr(repo_cls, "delete_by_id", delete_by_id)
