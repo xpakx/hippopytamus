@@ -104,3 +104,71 @@ def tokenize_method(name: str):
         i += 1
     append_field()
     return tokens
+
+
+class MethodParseError(Exception):
+    pass
+
+
+class TokenParser:
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.pos = 0
+        self.length = len(tokens)
+
+    def current(self):
+        return self.tokens[self.pos] if self.pos < self.length else None
+
+    def consume(self, expected=None):
+        cur = self.current()
+        if expected:
+            if isinstance(cur, tuple):
+                raise MethodParseError(f"Expected {expected}, got FIELD {cur[1]}")
+            if cur != expected:
+                raise MethodParseError(f"Expected {expected}, got {cur}")
+        self.pos += 1
+        return cur
+
+    def parse(self):
+        result = {'action': None, 'all': False, 'distinct': False, 'fields': []}
+
+        cur = self.current()
+        if cur not in (Token.FIND, Token.DELETE, Token.COUNT, Token.SAVE):
+            raise MethodParseError(f"Method must start with action, got {cur}")
+        result['action'] = cur.name.lower()
+        self.consume()
+
+        if self.current() == Token.ALL:
+            result['all'] = True
+            self.consume()
+
+        if self.current() == Token.DISTINCT:
+            result['distinct'] = True
+            self.consume()
+
+        if self.current() == Token.BY:
+            self.consume()
+            result['fields'] = self.parse_fields()
+        elif self.current():
+            raise MethodParseError("Fields must be preceded by 'by'")
+
+        return result
+
+    def parse_fields(self):
+        fields = []
+        while self.pos < self.length:
+            cur = self.current()
+            if isinstance(cur, tuple) and cur[0] == Token.FIELD:
+                field_name = cur[1]
+                self.consume()
+                connector = ''
+                if self.current() in (Token.AND, Token.OR):
+                    connector = self.consume().name.lower()
+                fields.append((field_name, connector))
+            else:
+                raise MethodParseError(f"Unexpected token {cur} in fields")
+        if len(fields) > 0:
+            last = fields[len(fields) - 1]
+            if last[1] != '':
+                raise MethodParseError("Unfinished method")
+        return fields
