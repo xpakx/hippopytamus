@@ -8,6 +8,10 @@ class HippoRepositoryCreator:
     def __init__(self) -> None:
         self.logger = LoggerFactory.get_logger()
         self.logger.debug("HippoRepositoryCreator crated")
+        print(tokenize_method("save"))
+        print(tokenize_method("find_by_id"))
+        print(tokenize_method("find_all"))
+        print(tokenize_method("delete_by_id"))
 
     # naive in-memory storage
     # TODO: parsing methods names
@@ -43,8 +47,47 @@ class HippoRepositoryCreator:
 
 
 class Token(Enum):
-    pass
+    FIND = auto()
+    DELETE = auto()
+    COUNT = auto()
+    SAVE = auto()
+
+    DISTINCT = auto()
+
+    BY = auto()
+    ALL = auto()
+
+    AND = auto()
+    OR = auto()
+    FIELD = auto()
 
 
 def tokenize_method(name: str):
-    pass
+    parts = name.split('_')
+    tokens = []
+    i = 0
+
+    while i < len(parts):
+        part = parts[i]
+        if part == 'find':
+            tokens.append(Token.FIND)
+        elif part == 'delete':
+            tokens.append(Token.DELETE)
+        elif part == 'count':
+            tokens.append(Token.COUNT)
+        elif part == 'save':
+            tokens.append(Token.SAVE)
+        elif part == 'distinct':
+            tokens.append(Token.DISTINCT)
+        elif part == 'all':
+            tokens.append(Token.ALL)
+        elif part == 'by':
+            tokens.append(Token.BY)
+        elif part == 'and':
+            tokens.append(Token.AND)
+        elif part == 'or':
+            tokens.append(Token.OR)
+        else:
+            tokens.append((Token.FIELD, part))
+        i += 1
+    return tokens
