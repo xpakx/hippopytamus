@@ -8,10 +8,6 @@ class HippoRepositoryCreator:
     def __init__(self) -> None:
         self.logger = LoggerFactory.get_logger()
         self.logger.debug("HippoRepositoryCreator crated")
-        print(tokenize_method("save"))
-        print(tokenize_method("find_by_id"))
-        print(tokenize_method("find_all"))
-        print(tokenize_method("delete_by_id"))
 
     # naive in-memory storage
     # TODO: parsing methods names
@@ -67,27 +63,44 @@ def tokenize_method(name: str):
     tokens = []
     i = 0
 
+    curr_field = []
+
+    def append_field():
+        if len(curr_field) > 0:
+            tokens.append((Token.FIELD, "_".join(curr_field)))
+            curr_field.clear()
+
     while i < len(parts):
         part = parts[i]
         if part == 'find':
+            append_field()
             tokens.append(Token.FIND)
         elif part == 'delete':
+            append_field()
             tokens.append(Token.DELETE)
         elif part == 'count':
+            append_field()
             tokens.append(Token.COUNT)
         elif part == 'save':
+            append_field()
             tokens.append(Token.SAVE)
         elif part == 'distinct':
+            append_field()
             tokens.append(Token.DISTINCT)
         elif part == 'all':
+            append_field()
             tokens.append(Token.ALL)
         elif part == 'by':
+            append_field()
             tokens.append(Token.BY)
         elif part == 'and':
+            append_field()
             tokens.append(Token.AND)
         elif part == 'or':
+            append_field()
             tokens.append(Token.OR)
         else:
-            tokens.append((Token.FIELD, part))
+            curr_field.append(part)
         i += 1
+    append_field()
     return tokens
