@@ -1,6 +1,7 @@
 from typing import Type
 from hippopytamus.data.repository import HippoRepository
 from hippopytamus.logger.logger import LoggerFactory
+from enum import Enum, auto
 
 
 class HippoRepositoryCreator:
@@ -39,3 +40,11 @@ class HippoRepositoryCreator:
         def delete_by_id(self, id):  # type: ignore
             self._store.pop(id, None)
         setattr(repo_cls, "delete_by_id", delete_by_id)
+
+
+class Token(Enum):
+    pass
+
+
+def tokenize_method(name: str):
+    pass
