@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, cast
 from hippopytamus.data.repository import HippoRepository
 from hippopytamus.logger.logger import LoggerFactory
 from enum import Enum, auto
@@ -58,14 +58,17 @@ class Token(Enum):
     FIELD = auto()
 
 
-def tokenize_method(name: str):
+Tok = tuple[Token, str] | Token
+
+
+def tokenize_method(name: str) -> list[Tok]:
     parts = name.split('_')
-    tokens = []
+    tokens: list[Tok] = []
     i = 0
 
-    curr_field = []
+    curr_field: list[str] = []
 
-    def append_field():
+    def append_field() -> None:
         if len(curr_field) > 0:
             tokens.append((Token.FIELD, "_".join(curr_field)))
             curr_field.clear()
@@ -111,15 +114,15 @@ class MethodParseError(Exception):
 
 
 class TokenParser:
-    def __init__(self, tokens):
+    def __init__(self, tokens: list[Tok]) -> None:
         self.tokens = tokens
         self.pos = 0
         self.length = len(tokens)
 
-    def current(self):
+    def current(self) -> Tok | None:
         return self.tokens[self.pos] if self.pos < self.length else None
 
-    def consume(self, expected=None):
+    def consume(self, expected: Tok | None = None) -> Tok | None:
         cur = self.current()
         if expected:
             if isinstance(cur, tuple):
@@ -129,12 +132,13 @@ class TokenParser:
         self.pos += 1
         return cur
 
-    def parse(self):
-        result = {'action': None, 'all': False, 'distinct': False, 'fields': []}
+    def parse(self) -> dict:
+        result: dict = {'action': None, 'all': False, 'distinct': False, 'fields': []}
 
         cur = self.current()
         if cur not in (Token.FIND, Token.DELETE, Token.COUNT, Token.SAVE):
             raise MethodParseError(f"Method must start with action, got {cur}")
+        cur = cast(Token, cur)
         result['action'] = cur.name.lower()
         self.consume()
 
@@ -154,7 +158,7 @@ class TokenParser:
 
         return result
 
-    def parse_fields(self):
+    def parse_fields(self) -> list:
         fields = []
         while self.pos < self.length:
             cur = self.current()
@@ -163,7 +167,8 @@ class TokenParser:
                 self.consume()
                 connector = ''
                 if self.current() in (Token.AND, Token.OR):
-                    connector = self.consume().name.lower()
+                    consumed = cast(Token, self.consume())
+                    connector = consumed.name.lower()
                 fields.append((field_name, connector))
             else:
                 raise MethodParseError(f"Unexpected token {cur} in fields")
