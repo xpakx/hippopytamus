@@ -1,4 +1,4 @@
-from hippopytamus.data.repo_creator import (
+from hippopytamus.data.repo_parser import (
        tokenize_method, Token, TokenParser,
        MethodParseError
 )
