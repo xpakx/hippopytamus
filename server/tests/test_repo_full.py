@@ -92,7 +92,6 @@ def test_repository_creator_basic_delete_by_id(repo):
     assert repo.find_all() == []
 
 
-@pytest.mark.skip(reason="Not implemented yet")
 def test_repository_creator_find_with_and(repo_complex):
     alice = EntityComplex(id=1, name="Alice", posts=10)
     alice2 = EntityComplex(id=2, name="Alice", posts=8)
@@ -109,7 +108,6 @@ def test_repository_creator_find_with_and(repo_complex):
     assert bob not in all_entities
 
 
-@pytest.mark.skip(reason="Not implemented yet")
 def test_find_with_three_fields_and_or(repo_complex):
     alice = EntityComplex(id=1, name="Alice", posts=10)
     alice2 = EntityComplex(id=2, name="Alice", posts=8)

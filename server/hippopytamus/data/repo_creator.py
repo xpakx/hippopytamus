@@ -58,10 +58,11 @@ class HippoRepositoryCreator:
         # TODO: use return type for definiton.all if any
 
         def query(self, *args, **kwargs):  # type: ignore
-            # TODO: multiple fields
+            # TODO: correctly map args and kwargs
             arg = {}
-            if len(args) > 0:
-                arg['id'] = args[0]
+            for i, (field, _) in enumerate(definition.fields):
+                if i < len(args):
+                    arg[field] = args[i]
 
             all = list(self._store.values())
             if predicate is not None:
