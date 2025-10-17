@@ -1,7 +1,16 @@
-from typing import Type, cast
+from typing import Type, cast, Callable
 from hippopytamus.data.repository import HippoRepository
 from hippopytamus.logger.logger import LoggerFactory
 from enum import Enum, auto
+from dataclasses import dataclass, field
+
+
+@dataclass
+class RepoMethodDefinition:
+    action: str | None = None
+    all: bool = False
+    distinct: bool = False
+    fields: list[tuple[str, str]] = field(default_factory=list)
 
 
 class HippoRepositoryCreator:
@@ -10,7 +19,6 @@ class HippoRepositoryCreator:
         self.logger.debug("HippoRepositoryCreator crated")
 
     # naive in-memory storage
-    # TODO: parsing methods names
     # TODO: generating methods based on parsed method
     # TODO: arbitrary data backend
     def create_repo_impl(self, repo_cls: Type[HippoRepository]) -> None:
@@ -40,6 +48,9 @@ class HippoRepositoryCreator:
         def delete_by_id(self, id):  # type: ignore
             self._store.pop(id, None)
         setattr(repo_cls, "delete_by_id", delete_by_id)
+
+    def generate_method(self, definition: RepoMethodDefinition) -> Callable:
+        pass
 
 
 class Token(Enum):
@@ -126,39 +137,41 @@ class TokenParser:
         cur = self.current()
         if expected:
             if isinstance(cur, tuple):
-                raise MethodParseError(f"Expected {expected}, got FIELD {cur[1]}")
+                raise MethodParseError(
+                        f"Expected {expected}, got FIELD {cur[1]}"
+                )
             if cur != expected:
                 raise MethodParseError(f"Expected {expected}, got {cur}")
         self.pos += 1
         return cur
 
-    def parse(self) -> dict:
-        result: dict = {'action': None, 'all': False, 'distinct': False, 'fields': []}
+    def parse(self) -> RepoMethodDefinition:
+        result = RepoMethodDefinition()
 
         cur = self.current()
         if cur not in (Token.FIND, Token.DELETE, Token.COUNT, Token.SAVE):
             raise MethodParseError(f"Method must start with action, got {cur}")
         cur = cast(Token, cur)
-        result['action'] = cur.name.lower()
+        result.action = cur.name.lower()
         self.consume()
 
         if self.current() == Token.ALL:
-            result['all'] = True
+            result.all = True
             self.consume()
 
         if self.current() == Token.DISTINCT:
-            result['distinct'] = True
+            result.distinct = True
             self.consume()
 
         if self.current() == Token.BY:
             self.consume()
-            result['fields'] = self.parse_fields()
+            result.fields = self.parse_fields()
         elif self.current():
             raise MethodParseError("Fields must be preceded by 'by'")
 
         return result
 
-    def parse_fields(self) -> list:
+    def parse_fields(self) -> list[tuple[str, str]]:
         fields = []
         while self.pos < self.length:
             cur = self.current()
