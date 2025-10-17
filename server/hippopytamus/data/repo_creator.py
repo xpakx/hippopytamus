@@ -1,4 +1,4 @@
-from typing import Type, Callable
+from typing import Type, Callable, Any
 from hippopytamus.data.repository import HippoRepository
 from hippopytamus.data.repo_parser import tokenize_method, TokenParser
 from hippopytamus.data.repo_parser import RepoMethodDefinition
@@ -50,19 +50,22 @@ class HippoRepositoryCreator:
         self.logger.debug(definition.fields)
         pred = RepoPredicate()
         pred.build_tree(definition.fields)
+        predicate = pred.make_predicate()
+
+        ret = self.get_return(definition)
 
         # TODO: define associations btwn args/kwargs and fields
         # TODO: use return type for definiton.all if any
 
         def query(self, *args, **kwargs):  # type: ignore
             # TODO: multiple fields
+            arg = {}
             if len(args) > 0:
-                pred.set_field("id", args[0])
-            predicate = pred.make_predicate()
+                arg['id'] = args[0]
 
             all = list(self._store.values())
             if predicate is not None:
-                candidates = [e for e in all if predicate(e)]
+                candidates = [e for e in all if predicate(e, arg)]
             else:
                 candidates = all
 
@@ -71,22 +74,25 @@ class HippoRepositoryCreator:
             if not definition.all and definition.action != "count":
                 candidates = [candidates[0]]
 
-            if definition.action == "find":
-                if definition.all:
-                    return candidates
-                elif len(candidates) > 0:
-                    return candidates[0]
-                else:
-                    return None
             if definition.action == "delete":
                 for entity in candidates:
                     self._store.pop(entity.id)
-                if definition.all:
-                    return candidates
-                elif len(candidates) > 0:
-                    return candidates[0]
-                else:
-                    return None
-            if definition.action == "count":
-                return len(candidates)
+            return ret(candidates)
         return query
+
+    def get_return(self, definition: RepoMethodDefinition) -> Callable:
+        def find_del_return(candidates: list) -> Any:
+            if definition.all:
+                return candidates
+            elif len(candidates) > 0:
+                return candidates[0]
+            else:
+                return None
+        if definition.action in ["find", "delete"]:
+            return find_del_return
+
+        def count_return(candidates: list) -> int:
+            return len(candidates)
+        if definition.action == "count":
+            return count_return
+        return find_del_return

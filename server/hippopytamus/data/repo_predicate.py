@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Callable
 
 
 class Node:
@@ -13,18 +13,11 @@ class Node:
         self.left = left
         self.right = right
         self.op = op
-        self.value = None
 
 
 class RepoPredicate:
     def __init__(self) -> None:
         self.head: Node | None = None
-        self.nodes_by_field: dict = {}
-
-    def set_field(self, fld: str, value: Any) -> None:
-        to_set = self.nodes_by_field.get(fld, [])
-        for node in to_set:
-            node.value = value
 
     def build_tree(self, fields: list) -> None:
         stack = []
@@ -33,7 +26,6 @@ class RepoPredicate:
 
         for fld, op in fields:
             node = Node(field_name=fld)
-            self.nodes_by_field.setdefault(fld, []).append(node)
             and_group.append(node)
 
             if op == 'or' or op == '':
@@ -74,13 +66,13 @@ class RepoPredicate:
             return None  # type: ignore
         if node.field_name:
             name = node.field_name
-            return lambda entity: getattr(entity, name) == node.value
+            return lambda entity, args: getattr(entity, name) == args.get(name)
         elif node.op == 'and':
             left_pred = self.make_predicate(node.left)
             right_pred = self.make_predicate(node.right)
-            return lambda entity: left_pred(entity) and right_pred(entity)
+            return lambda entity, args: left_pred(entity, args) and right_pred(entity, args)
         elif node.op == 'or':
             left_pred = self.make_predicate(node.left)
             right_pred = self.make_predicate(node.right)
-            return lambda entity: left_pred(entity) or right_pred(entity) 
+            return lambda entity, args: left_pred(entity, args) or right_pred(entity, args) 
         raise Exception("Wrong node operation")
