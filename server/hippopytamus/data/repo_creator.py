@@ -3,6 +3,7 @@ from hippopytamus.data.repository import HippoRepository
 from hippopytamus.logger.logger import LoggerFactory
 from enum import Enum, auto
 from dataclasses import dataclass, field
+import inspect
 
 
 @dataclass
@@ -32,25 +33,57 @@ class HippoRepositoryCreator:
             self._store = {}
         repo_cls.__init__ = new_init  # type: ignore
 
-        def save(self, entity):  # type: ignore
-            self._store[getattr(entity, "id")] = entity
-            return entity
-        setattr(repo_cls, "save", save)
+        for method_name, _ in inspect.getmembers(repo_cls, predicate=inspect.isfunction):
+            if method_name.startswith("_"):
+                continue
+            self.logger.debug(f"Parsing repository method: {method_name}")
+            parsed_func = self.parse_method(method_name)
+            self.logger.debug(f"Patching repository method: {method_name}")
+            setattr(repo_cls, method_name, parsed_func)
 
-        def find_by_id(self, id):  # type: ignore
-            return self._store.get(id)
-        setattr(repo_cls, "find_by_id", find_by_id)
+    def parse_method(self, method_name: str) -> Callable | None:
+        tokens = tokenize_method(method_name)
+        parser = TokenParser(tokens)
+        parsed = parser.parse()
+        return self.generate_method(parsed)
 
-        def find_all(self):  # type: ignore
-            return list(self._store.values())
-        setattr(repo_cls, "find_all", find_all)
+    def generate_method(self, definition: RepoMethodDefinition) -> Callable | None:
+        if definition.action == "save":
+            def save(self, entity):  # type: ignore
+                self._store[getattr(entity, "id")] = entity
+                return entity
+            return save
 
-        def delete_by_id(self, id):  # type: ignore
-            self._store.pop(id, None)
-        setattr(repo_cls, "delete_by_id", delete_by_id)
+        def query(self, *args, **kwargs):
+            # TODO: multiple fields
+            candidates = []
+            if len(definition.fields) == 0:
+                candidates = list(self._store.values())
+            else:
+                candidates.append(self._store.get(args[0]))
 
-    def generate_method(self, definition: RepoMethodDefinition) -> Callable:
-        pass
+            if not definition.all and definition.action != "count":
+                candidates = [candidates[0]]
+
+            if definition.action == "find":
+                if definition.all:
+                    return candidates
+                elif len(candidates) > 0:
+                    return candidates[0]
+                else:
+                    return None
+            if definition.action == "delete":
+                for entity in candidates:
+                    self._store.pop(entity.id)
+                if definition.all:
+                    return candidates
+                elif len(candidates) > 0:
+                    return candidates[0]
+                else:
+                    return None
+            if definition.action == "count":
+                return len(candidates)
+        return query
 
 
 class Token(Enum):
