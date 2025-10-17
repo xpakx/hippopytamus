@@ -47,9 +47,9 @@ def test_parse_tokens():
     tokens = tokenize_method("find_distinct_by_name_and_age")
     parser = TokenParser(tokens)
     parsed = parser.parse()
-    assert parsed['action'] == 'find'
-    assert parsed['distinct'] is True
-    assert parsed['fields'] == [('name', 'and'), ('age', '')]
+    assert parsed.action == 'find'
+    assert parsed.distinct is True
+    assert parsed.fields == [('name', 'and'), ('age', '')]
 
 
 def test_parser_throw_error_for_bad_tokens():
@@ -67,37 +67,37 @@ def test_parse_save():
     tokens = tokenize_method("save")
     parser = TokenParser(tokens)
     parsed = parser.parse()
-    assert parsed['action'] == 'save'
-    assert parsed['distinct'] is False
-    assert parsed['all'] is False
-    assert parsed['fields'] == []
+    assert parsed.action == 'save'
+    assert parsed.distinct is False
+    assert parsed.all is False
+    assert parsed.fields == []
 
 
 def test_parse_find_by_id():
     tokens = tokenize_method("find_by_id")
     parser = TokenParser(tokens)
     parsed = parser.parse()
-    assert parsed['action'] == 'find'
-    assert parsed['distinct'] is False
-    assert parsed['all'] is False
-    assert parsed['fields'] == [('id', '')]
+    assert parsed.action == 'find'
+    assert parsed.distinct is False
+    assert parsed.all is False
+    assert parsed.fields == [('id', '')]
 
 
 def test_parse_delete_by_id():
     tokens = tokenize_method("delete_by_id")
     parser = TokenParser(tokens)
     parsed = parser.parse()
-    assert parsed['action'] == 'delete'
-    assert parsed['distinct'] is False
-    assert parsed['all'] is False
-    assert parsed['fields'] == [('id', '')]
+    assert parsed.action == 'delete'
+    assert parsed.distinct is False
+    assert parsed.all is False
+    assert parsed.fields == [('id', '')]
 
 
 def test_parse_find_all():
     tokens = tokenize_method("find_all")
     parser = TokenParser(tokens)
     parsed = parser.parse()
-    assert parsed['action'] == 'find'
-    assert parsed['distinct'] is False
-    assert parsed['all'] is True
-    assert parsed['fields'] == []
+    assert parsed.action == 'find'
+    assert parsed.distinct is False
+    assert parsed.all is True
+    assert parsed.fields == []
