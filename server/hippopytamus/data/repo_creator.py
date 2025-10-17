@@ -14,6 +14,82 @@ class RepoMethodDefinition:
     fields: list[tuple[str, str]] = field(default_factory=list)
 
 
+class Node:
+    def __init__(self, field_name=None, left=None, right=None, op=None):
+        self.field_name = field_name
+        self.left = left
+        self.right = right
+        self.op = op
+        self.value = None
+
+
+class RepoPredicate:
+    def __init__(self) -> None:
+        self.head = None
+        self.nodes_by_field = {}
+
+    def set_field(self, fld, value) -> None:
+        to_set = self.nodes_by_field.get(fld, [])
+        for node in to_set:
+            node.value = value
+
+    def build_tree(self, fields):
+        stack = []
+        and_group = []
+
+        for fld, op in fields:
+            node = Node(field_name=fld)
+            self.nodes_by_field.setdefault(fld, []).append(node)
+            and_group.append(node)
+
+            if op == 'or' or op == '':
+                if len(and_group) == 1:
+                    stack.append(and_group[0])
+                else:
+                    temp = and_group[0]
+                    for n in and_group[1:]:
+                        temp = Node(left=temp, right=n, op='and')
+                    stack.append(temp)
+                and_group = []
+
+        node = stack.pop(0) if stack else None
+        while stack:
+            node = Node(left=node, right=stack.pop(0), op='or')
+
+        self.head = node
+
+    def print(self, node=None, indent=0):
+        if node is None:
+            node = self.head
+        if node is None:
+            return
+        prefix = "  " * indent
+        if node.field_name:
+            print(f"{prefix}{node.field_name} = {node.value}")
+        else:
+            print(f"{prefix}{node.op.upper()}")
+            if node.left:
+                self.print(node.left, indent + 1)
+            if node.right:
+                self.print(node.right, indent + 1)
+
+    def make_predicate(self, node=None):
+        if node is None:
+            node = self.head
+        if node is None:
+            return
+        if node.field_name:
+            return lambda entity: getattr(entity, node.field_name) == node.value
+        elif node.op == 'and':
+            left_pred = self.make_predicate(node.left)
+            right_pred = self.make_predicate(node.right)
+            return lambda entity: left_pred(entity) and right_pred(entity)
+        elif node.op == 'or':
+            left_pred = self.make_predicate(node.left)
+            right_pred = self.make_predicate(node.right)
+            return lambda entity: left_pred(entity) or right_pred(entity)
+
+
 class HippoRepositoryCreator:
     def __init__(self) -> None:
         self.logger = LoggerFactory.get_logger()
@@ -54,14 +130,28 @@ class HippoRepositoryCreator:
                 return entity
             return save
 
+        print(definition.fields)
+        pred = RepoPredicate()
+        pred.build_tree(definition.fields)
+        pred.print()
+
+        # TODO: define associations btwn args/kwargs and fields
+        # TODO: use return type for definiton.all if any
+
         def query(self, *args, **kwargs):
             # TODO: multiple fields
-            candidates = []
-            if len(definition.fields) == 0:
-                candidates = list(self._store.values())
-            else:
-                candidates.append(self._store.get(args[0]))
+            if len(args) > 0:
+                pred.set_field("id", args[0])
+            predicate = pred.make_predicate()
 
+            all = list(self._store.values())
+            if predicate:
+                candidates = [e for e in all if predicate(e)]
+            else:
+                candidates = all
+
+            if len(candidates) == 0:
+                return [] if definition.all else None
             if not definition.all and definition.action != "count":
                 candidates = [candidates[0]]
 
