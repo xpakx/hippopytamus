@@ -13,7 +13,7 @@ from hippopytamus.core.class_parser import HippoClassProcessor
 from hippopytamus.core.router import HippoRouter
 from hippopytamus.logger.logger import LoggerFactory
 from hippopytamus.core.filter import HippoFilter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass
 from abc import ABC, abstractmethod
 
 
@@ -183,7 +183,7 @@ class HippoContainer(Servlet):
         return {}
 
     def set_body_param(self, params: List, request: Dict, route: RouteData) -> None:
-        requestBody: Optional[str] = request.get('body')
+        requestBody: Any = request.get('body')
         if requestBody is None:
             return
         bodyParamType = route.bodyParamType
@@ -191,6 +191,13 @@ class HippoContainer(Servlet):
             if self.is_dict(bodyParamType):
                 try:
                     requestBody = json.loads(requestBody)
+                except Exception:
+                    self.logger.error("Malformed json")
+            elif is_dataclass(bodyParamType):
+                try:
+                    jsonData = json.loads(requestBody)
+                    # TODO: recursive dataclasses
+                    requestBody = bodyParamType(**jsonData)
                 except Exception:
                     self.logger.error("Malformed json")
         if route.bodyParam is not None:
