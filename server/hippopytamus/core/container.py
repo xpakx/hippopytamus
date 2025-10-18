@@ -290,6 +290,8 @@ class HippoContainer(Servlet):
         headers = {"Server": "Hippopytamus", "Content-Type": "text/html"}
         if resp is None:
             return {"code": 200, "body": b"", "headers": headers}
+        if (type(resp) is int):
+            resp = str(resp)
         if (type(resp) is str):
             return {
                     "code": 200,
