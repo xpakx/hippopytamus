@@ -190,6 +190,32 @@ def PostMapping(path: strList = [], consumes: strList = [],
                               name, params, produces, value)
 
 
+def PutMapping(path: strList = [], consumes: strList = [],
+               headers: strList = [], name: str = "",
+               params: strList = [], produces: strList = [],
+               value: strList = []) -> Callable:
+    if callable(path):
+        func = path
+        wrapper = PutMapping()
+        return wrapper(func)
+    else:
+        return RequestMapping(path, consumes, headers, "PUT",
+                              name, params, produces, value)
+
+
+def DeleteMapping(path: strList = [], consumes: strList = [],
+                  headers: strList = [], name: str = "",
+                  params: strList = [], produces: strList = [],
+                  value: strList = []) -> Callable:
+    if callable(path):
+        func = path
+        wrapper = DeleteMapping()
+        return wrapper(func)
+    else:
+        return RequestMapping(path, consumes, headers, "DELETE",
+                              name, params, produces, value)
+
+
 class AnnotationMetadata:
     def __init__(self, metadata: Dict) -> None:
         self.metadata = metadata

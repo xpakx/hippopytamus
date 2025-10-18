@@ -1,6 +1,7 @@
 from hippopytamus.core.annotation import (
         Controller, GetMapping, PostMapping,
-        RequestBody, RequestParam, Repository
+        RequestBody, RequestParam, Repository,
+        DeleteMapping, PutMapping
 )
 from hippopytamus.data.repository import HippoRepository
 from dataclasses import dataclass
@@ -50,3 +51,21 @@ class MyService:
     def read_all(self) -> list[str]:
         users = self.repo.find_all()
         return [user.name for user in users]
+
+    @DeleteMapping("/delete")
+    def delete(self, id: RequestParam(int, required=True)) -> str:
+        existing = self.repo.delete_by_id(id)
+        if not existing:
+            return "False"
+        return "True"
+
+    @PutMapping("/update")
+    def update(self, id: RequestParam(int, required=True),
+               user: RequestBody(UserDto, required=True)) -> str:
+        existing = self.repo.find_by_id(id)
+        if not existing:
+            return "False"
+        existing.name = user.name
+        existing.password = user.password
+        self.repo.save(existing)
+        return "True"
