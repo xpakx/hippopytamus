@@ -51,7 +51,7 @@ class RepoPredicate:
             return
         prefix = "  " * indent
         if node.field_name:
-            print(f"{prefix}{node.field_name} = {node.value}")
+            print(f"{prefix}{node.field_name}")
         elif node.op is not None:
             print(f"{prefix}{node.op.upper()}")
             if node.left:
