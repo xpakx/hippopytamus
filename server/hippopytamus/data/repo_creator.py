@@ -2,6 +2,7 @@ from typing import Type, Callable, Any
 from hippopytamus.data.repository import HippoRepository
 from hippopytamus.data.repo_parser import tokenize_method, TokenParser
 from hippopytamus.data.repo_parser import RepoMethodDefinition
+from hippopytamus.data.repo_parser import update_with_type_hints
 from hippopytamus.data.repo_predicate import RepoPredicate
 from hippopytamus.logger.logger import LoggerFactory
 import inspect
@@ -26,18 +27,19 @@ class HippoRepositoryCreator:
             self._store = {}
         repo_cls.__init__ = new_init  # type: ignore
 
-        for method_name, _ in inspect.getmembers(repo_cls, predicate=inspect.isfunction):
+        for method_name, method in inspect.getmembers(repo_cls, predicate=inspect.isfunction):
             if method_name.startswith("_"):
                 continue
             self.logger.debug(f"Parsing repository method: {method_name}")
-            parsed_func = self.parse_method(method_name)
+            parsed_func = self.parse_method(method_name, method)
             self.logger.debug(f"Patching repository method: {method_name}")
             setattr(repo_cls, method_name, parsed_func)
 
-    def parse_method(self, method_name: str) -> Callable | None:
+    def parse_method(self, method_name: str, method: Any) -> Callable | None:
         tokens = tokenize_method(method_name)
         parser = TokenParser(tokens)
         parsed = parser.parse()
+        update_with_type_hints(method, parsed)
         return self.generate_method(parsed)
 
     def generate_method(self, definition: RepoMethodDefinition) -> Callable | None:

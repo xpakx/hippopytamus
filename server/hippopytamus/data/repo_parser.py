@@ -1,6 +1,8 @@
-from typing import cast
+from typing import cast, Any, List, get_args, Union
+from typing import Optional
 from enum import Enum, auto
 from dataclasses import dataclass, field
+from typing import get_type_hints, get_origin
 
 
 @dataclass
@@ -148,3 +150,23 @@ class TokenParser:
             if last[1] != '':
                 raise MethodParseError("Unfinished method")
         return fields
+
+
+def update_with_type_hints(
+        method: Any,
+        definition: RepoMethodDefinition
+) -> None:
+    hints = get_type_hints(method)
+    return_type = hints.get('return', None)
+    if return_type is not None:
+        definition.all = is_list_type(return_type)
+
+
+def is_list_type(cls: Any) -> bool:
+    origin = get_origin(cls)
+    print(origin is list)
+    if origin is list or origin is List:
+        return True
+    if origin is Union:
+        return any(is_list_type(arg) for arg in get_args(cls))
+    return False
