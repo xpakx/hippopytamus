@@ -1,7 +1,8 @@
 from hippopytamus.data.repo_parser import (
        tokenize_method, Token, TokenParser,
-       MethodParseError
+       MethodParseError, update_with_type_hints
 )
+from typing import List, Optional
 
 
 def test_basic_find():
@@ -101,3 +102,43 @@ def test_parse_find_all():
     assert parsed.distinct is False
     assert parsed.all is True
     assert parsed.fields == []
+
+
+def test_update_with_type_hints_sets_all_list():
+    def find_by_name(name: str) -> List[int]:
+        pass
+    tokens = tokenize_method(find_by_name.__name__)
+    parser = TokenParser(tokens)
+    parsed = parser.parse()
+    update_with_type_hints(find_by_name, parsed)
+    assert parsed.all is True
+
+
+def test_update_with_type_hints_sets_all_optional():
+    def find_by_name(name: str) -> Optional[List[int]]:
+        pass
+    tokens = tokenize_method(find_by_name.__name__)
+    parser = TokenParser(tokens)
+    parsed = parser.parse()
+    update_with_type_hints(find_by_name, parsed)
+    assert parsed.all is True
+
+
+def test_update_with_type_hints_sets_all_optional_new():
+    def find_by_name() -> List[int] | None:
+        pass
+    tokens = tokenize_method(find_by_name.__name__)
+    parser = TokenParser(tokens)
+    parsed = parser.parse()
+    update_with_type_hints(find_by_name, parsed)
+    assert parsed.all is True
+
+
+def test_update_with_type_hints_sets_all_false():
+    def find_all_by_name() -> int:
+        pass
+    tokens = tokenize_method(find_all_by_name.__name__)
+    parser = TokenParser(tokens)
+    parsed = parser.parse()
+    update_with_type_hints(find_all_by_name, parsed)
+    assert parsed.all is False
